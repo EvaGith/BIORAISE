@@ -1,0 +1,925 @@
+
+### RASTER TO POINT
+
+import arcpy
+from arcpy import env
+env.workspace = r"F:\bioraise\DEM\slope\masks"
+
+rasterlst = arcpy.ListRasters()
+#print rasterlst
+
+for raster in rasterlst: 
+    inRaster = raster
+    outPoint = raster.split(".tif")[0] + ".shp"
+    #print outPoint
+    field = "VALUE"
+    try:
+        arcpy.RasterToPoint_conversion(inRaster, outPoint, field)
+    except:
+        print raster
+        continue
+
+import arcpy
+from arcpy import env
+env.workspace = r"F:\bioraise\DEM\slope\masks"
+
+rasterlst = arcpy.ListRasters()
+#print rasterlst
+
+for raster in rasterlst: 
+    if not raster.endswith("_cr.tif"):
+        inRaster = raster
+        outPoint = raster.split(".tif")[0] + ".shp"
+        #print outPoint
+        field = "Value"
+        try:
+            arcpy.RasterToPoint_conversion(inRaster, outPoint, field)
+        except:
+            print raster
+            continue
+
+
+###MEANINGFUL NAME
+import arcpy  
+import os  
+import re
+outWorkspace = r"F:\bioraise\NPP_biomass\NPP_WDR\orcdrc30_countries"
+arcpy.env.workspace = outWorkspace  
+feature = arcpy.ListFeatureClasses()
+arcpy.env.overwriteOutput = True 
+
+
+for fc in feature:
+	#print(fc)
+	name = fc.split('_')[-1].split('.shp')[0]
+        name2 = "I_"+ name
+        print name
+        print name2
+        try:
+            arcpy.AddField_management(fc, name, "FLOAT","", "", "", name, "NULLABLE", "NON_REQUIRED", "")  
+            arcpy.AddField_management(fc, name2, "FLOAT","", "", "", name2, "NULLABLE", "NON_REQUIRED", "") 
+            arcpy.CalculateField_management(fc, name, "'!grid_code!'", "PYTHON_9.3", "") 
+            arcpy.CalculateField_management(fc, name2, "'!pointid!'", "PYTHON_9.3", "") 
+        except:
+            continue
+
+(SAME FOR PESERA)
+
+## clip NUT2 SHRUBS FOR SPATIAL JOIN
+import arcpy
+from arcpy import env
+
+env.workspace = "F:\bioraise\NPP_biomass\NPP_WDR\slopepts_countries\spatial_NUT2"
+
+# Set local variables
+in_features = "majorrds.shp"
+clip_features = "study_quads.shp"
+out_feature_class = "C:/output/studyarea.shp"
+xy_tolerance = ""
+
+# Execute Clip
+arcpy.Clip_analysis(in_features, clip_features, out_feature_class, xy_tolerance)
+
+import arcpy
+from arcpy import env
+
+# Set workspace
+env.workspace = "C:/data"
+
+# Set local variables
+in_features = "majorrds.shp"
+clip_features = "study_quads.shp"
+out_feature_class = "C:/output/studyarea.shp"
+xy_tolerance = ""
+
+# Execute Clip
+arcpy.Clip_analysis(in_features, clip_features, out_feature_class, xy_tolerance)
+
+#### SPATIAL JOIN
+
+# Import system modules
+import arcpy
+import os
+
+# Set local variables
+workspace = r"F:\bioraise\NPP_biomass\NPP_WDR\slopepts_countries\slopes_ok"
+outWorkspace = r"F:\bioraise\NPP_biomass\NPP_WDR\slopepts_countries\spatial_NUT2"
+ 
+# Want to join NUT2 to slopes and calculate the mean slop
+# for each polygon in NUT2
+targetFeatures = os.path.join(workspace, "states")
+joinFeatures = os.path.join(workspace, "cities")
+ 
+# Output will be the target features, states, with a mean city population field (mcp)
+outfc = os.path.join(outWorkspace, "states_mcp2")
+ 
+# Create a new fieldmappings and add the two input feature classes.
+fieldmappings = arcpy.FieldMappings()
+fieldmappings.addTable(targetFeatures)
+fieldmappings.addTable(joinFeatures)
+ 
+# First get the POP1990 fieldmap. POP1990 is a field in the cities feature class.
+# The output will have the states with the attributes of the cities. Setting the
+# field's merge rule to mean will aggregate the values for all of the cities for
+# each state into an average value. The field is also renamed to be more appropriate
+# for the output.
+pop1990FieldIndex = fieldmappings.findFieldMapIndex("POP1990")
+fieldmap = fieldmappings.getFieldMap(pop1990FieldIndex)
+ 
+# Get the output field's properties as a field object
+field = fieldmap.outputField
+ 
+# Rename the field and pass the updated field object back into the field map
+field.name = "mean_city_pop"
+field.aliasName = "mean_city_pop"
+fieldmap.outputField = field
+ 
+# Set the merge rule to mean and then replace the old fieldmap in the mappings object
+# with the updated one
+fieldmap.mergeRule = "mean"
+fieldmappings.replaceFieldMap(pop1990FieldIndex, fieldmap)
+ 
+# Delete fields that are no longer applicable, such as city CITY_NAME and CITY_FIPS
+# as only the first value will be used by default
+x = fieldmappings.findFieldMapIndex("CITY_NAME")
+fieldmappings.removeFieldMap(x)
+y = fieldmappings.findFieldMapIndex("CITY_FIPS")
+fieldmappings.removeFieldMap(y)
+ 
+#Run the Spatial Join tool, using the defaults for the join operation and join type
+arcpy.SpatialJoin_analysis(targetFeatures, joinFeatures, outfc, "#", "#", fieldmappings)
+
+
+
+
+#### MERGE FILES
+import arcpy
+from arcpy import env
+
+arcpy.env.workspace = r"F:\bioraise\NPP_biomass\NPP_WDR\shrub_countries_matrix"
+
+fclst = arcpy.ListFeatureClasses()
+
+for fc in fclst:
+    countryname = fc.split("_shrub_")[0]
+    #print countryname
+    #feature classes to be merged
+    fc1 = countryname + "_shrub_pesera.shp"
+    fc2 = countryname + "_shrub_ordcrd.shp"
+    try:
+        fieldMappings = arcpy.FieldMappings()
+        fieldMappings.addTable(fc1)
+        fieldMappings.addTable(fc2)
+        output = "F:/bioraise/NPP_biomass/NPP_WDR/shrub_countries_matrix/merge_orcdrc_pesera" + "/" + "merge_"+ fc1 
+        print output
+        #arcpy.Merge_management([oldStreets, newStreets], output, fieldMappings)
+    except:
+        #print fc, "baaad"
+        continue
+
+ 
+newStreets = "Habitat_Analysis.gdb/futrds"
+# Create FieldMappings object to manage merge output fields
+fieldMappings = arcpy.FieldMappings()
+# Add all fields from both oldStreets and newStreets
+fieldMappings.addTable(oldStreets)
+fieldMappings.addTable(newStreets)
+# Add input fields "STREET_NAM" & "NM" into new output field
+fldMap_streetName = arcpy.FieldMap()
+fldMap_streetName.addInputField(oldStreets,"STREET_NAM")
+fldMap_streetName.addInputField(newStreets,"NM")
+# Set name of new output field "Street_Name"
+streetName = fldMap_streetName.outputField
+streetName.name = "Street_Name"
+fldMap_streetName.outputField = streetName
+# Add output field to field mappings object
+fieldMappings.addFieldMap(fldMap_streetName)
+# Add input fields "CLASS" & "IFC" into new output field
+fldMap_streetClass = arcpy.FieldMap()
+fldMap_streetClass.addInputField(oldStreets,"CLASS")
+fldMap_streetClass.addInputField(newStreets,"IFC")
+# Set name of new output field "Street_Class"
+streetClass = fldMap_streetClass.outputField
+streetClass.name = "Street_Class"
+fldMap_streetClass.outputField = streetClass  
+# Add output field to field mappings object
+fieldMappings.addFieldMap(fldMap_streetClass)  
+# Remove all output fields from the field mappings, except fields "Street_Class", "Street_Name", & "Distance"
+for field in fieldMappings.fields:
+    if field.name not in ["Street_Class","Street_Name","Distance"]:
+        fieldMappings.removeFieldMap(fieldMappings.findFieldMapIndex(field.name))
+# Since both oldStreets and newStreets have field "Distance", no field mapping is required
+# Use Merge tool to move features into single dataset
+uptodateStreets = "C:/output/Output.gdb/allroads"
+arcpy.Merge_management([oldStreets, newStreets], uptodateStreets, fieldMappings)
+
+### CHECK RASTER PROPERTIES
+import arcpy
+from arcpy import env
+env.workspace = r"F:\bioraise\DEM\slope\masks"
+
+rasterlst = arcpy.ListRasters()
+#print rasterlst
+
+for raster in rasterlst: 
+    props = ['MINIMUM', 'MAXIMUM', 'MEAN', 'STD', 'ALLNODATA', 'ANYNODATA', 'UNIQUEVALUECOUNT']  
+    for prop in props:  
+        try:  
+            print "{0}: {1}".format(prop, arcpy.GetRasterProperties_management(raster, prop))  + raster
+        except Exception as e:  
+            print "{0}: {1}".format(prop, e) + raster + " baaad"
+            continue  
+
+# ENVIRONMENTAL CONSTRAINTS PES ORCDRC01
+import arcpy  
+import os  
+from arcpy import env
+arcpy.env.workspace=r"E:\new_shrub\Potencial" 
+arcpy.env.overwriteOutput = True 
+
+fcList = arcpy.ListFeatureClasses()
+#print fcList
+
+for fc in fcList:
+    fieldName = "avorgc"
+    arcpy.AddField_management(fc,"avorgc","FLOAT","", "", "", "avorgc", "NULLABLE", "NON_REQUIRED", "") 
+    expression = "potential(float(!tyrplus!), float(!slope!), float(!orcdrc01!))" # check with slop field when ready
+    codeblock = """def potential(valty, valSlope, orgc):
+       if (valSlope<20):
+           if orgc < 1: 
+               return 0
+           elif orgc < 2: 
+               rorg = valty * 0.4
+               return rorg
+           else: 
+               rorg = valty * 0.6
+               return rorg
+       elif (valSlope<60):
+           if orgc < 1: 
+               return 0
+           elif orgc < 2: 
+               rorg = valty * 0.3
+               return rorg
+           else: 
+               rorg = valty * 0.5
+               return rorg
+       else:
+           return 0"""
+    try:
+        arcpy.CalculateField_management(fc, fieldName, expression, "PYTHON_9.3", codeblock)
+    except:
+        print fc
+        continue
+
+# PESERA (great differences between PESERA old with pes!)
+##avpesera 
+import arcpy  
+import os  
+from arcpy import env
+arcpy.env.workspace=r"E:\new_shrub\Potencial"   
+arcpy.env.overwriteOutput = True 
+
+fcs = [fc for fc in arcpy.ListFeatureClasses() if not fc.endswith('orcdrc1.shp')]
+print fcs
+for fc in fcs:
+    fieldName = "avpes"
+    arcpy.AddField_management(fc,"avpes","FLOAT","", "", "", "avpes", "NULLABLE", "NON_REQUIRED", "") # this will be the final available resources NEEDS CALCULATEFIELD MANAGEMENT AFTER SOIL LOSS RESTRICTIONS AND CARBON RESTRICTIONS
+    expression = "AVPES(float(!tyrplus!), float(!slope!), float(!pes!))"
+    codeblock = """def AVPES(valty, valSlope, soileros):
+       if (valSlope<20):
+           if soileros < 2: 
+               rsoileros = valty * 0.6
+               return rsoileros
+           elif soileros < 10: 
+               rsoileros = valty * 0.4
+               return rsoileros
+           else: 
+               return 0
+       elif (valSlope<60):
+           if soileros < 2: 
+               rsoileros = valty * 0.5    
+               return rsoileros
+           elif soileros < 10: 
+               rsoileros = valty * 0.3
+               return rsoileros
+           else: 
+               return 0
+       else:
+           return 0"""
+    try:
+        arcpy.CalculateField_management(fc, fieldName, expression, "PYTHON_9.3", codeblock)
+    except:
+        print fc
+        continue
+# considering PESERA or pes results in the same because usually if pes is below 2, PESERA is also below 2
+import arcpy  
+import os  
+from arcpy import env
+arcpy.env.workspace=r"E:\new_shrub\Potencial"   
+arcpy.env.overwriteOutput = True 
+
+fcs = [fc for fc in arcpy.ListFeatureClasses() if not fc.endswith('orcdrc1.shp')]
+print fcs
+for fc in fcs:
+    fieldName = "avpesera"
+    arcpy.AddField_management(fc,"avpesera","FLOAT","", "", "", "avpesera", "NULLABLE", "NON_REQUIRED", "") # this will be the final available resources NEEDS CALCULATEFIELD MANAGEMENT AFTER SOIL LOSS RESTRICTIONS AND CARBON RESTRICTIONS
+    expression = "AVPES(float(!tyrplus!), float(!slope!), float(!PESERA!))"
+    codeblock = """def AVPES(valty, valSlope, soileros):
+       if (valSlope<20):
+           if soileros < 2: 
+               rsoileros = valty * 0.6
+               return rsoileros
+           elif soileros < 10: 
+               rsoileros = valty * 0.4
+               return rsoileros
+           else: 
+               return 0
+       elif (valSlope<60):
+           if soileros < 2: 
+               rsoileros = valty * 0.5    
+               return rsoileros
+           elif soileros < 10: 
+               rsoileros = valty * 0.3
+               return rsoileros
+           else: 
+               return 0
+       else:
+           return 0"""
+    try:
+        arcpy.CalculateField_management(fc, fieldName, expression, "PYTHON_9.3", codeblock)
+    except:
+        print fc
+        continue
+
+## more restrictive considering pes
+import arcpy
+arcpy.env.workspace=r"E:\new_shrub\Potencial"  
+arcpy.env.overwriteOutput = True 
+
+fcs = [fc for fc in arcpy.ListFeatureClasses() if not fc.endswith('orcdrc1.shp')]
+#print fcList
+
+for fc in fcs:
+    
+    fieldName = "avplus"
+    name = "avplus"
+    arcpy.AddField_management(fc,"avplus","FLOAT","", "", "", "avplus", "NULLABLE", "NON_REQUIRED", "")
+    expression = "available(float(!avorgc!), float(!avpes!), float(!pes!))"
+    codeblock = """def available(valavorgc, valavloss, valpesera):
+        if valpesera is not None:
+            if (valavorgc<valavloss):
+                return valavorgc
+            else:
+                return valavloss
+        else:
+            av = valavorgc  
+            return av"""
+    try:
+        arcpy.CalculateField_management(fc, fieldName, expression, "PYTHON_9.3", codeblock)
+    except:
+        print fc
+        continue
+
+# more restrictive considering PESERA
+import arcpy
+arcpy.env.workspace=r"E:\new_shrub\Potencial"  
+arcpy.env.overwriteOutput = True 
+
+fcs = [fc for fc in arcpy.ListFeatureClasses() if not fc.endswith('orcdrc1.shp')]
+#print fcList
+
+for fc in fcs:
+    
+    fieldName = "avpluspese"
+    name = "avpluspese"
+    arcpy.AddField_management(fc,"avpluspese","FLOAT","", "", "", "avpluspese", "NULLABLE", "NON_REQUIRED", "")
+    expression = "available(float(!avorgc!), float(!avpesera!), float(!PESERA!))"
+    codeblock = """def available(valavorgc, valavloss, valpesera):
+        if valpesera is not None:
+            if (valavorgc<valavloss):
+                return valavorgc
+            else:
+                return valavloss
+        else:
+            av = valavorgc  
+            return av"""
+    try:
+        arcpy.CalculateField_management(fc, fieldName, expression, "PYTHON_9.3", codeblock)
+    except:
+        print fc
+        continue
+
+## so only small differences in the end (check stats with Paloma in xls)
+
+## add field to croatia and turkey
+
+import arcpy
+arcpy.env.workspace=r"E:\new_shrub\Available"  
+arcpy.env.overwriteOutput = True 
+
+fcs = [fc for fc in arcpy.ListFeatureClasses() if fc.endswith('orcdrc1.shp')]
+for fc in fcs:
+    fieldName = "avplus"
+    arcpy.AddField_management(fc,"avplus","FLOAT","", "", "", "avplus", "NULLABLE", "NON_REQUIRED", "")
+    arcpy.CalculateField_management(fc, fieldName, "'!avorgc!'", "PYTHON_9.3", "") 
+
+
+###3NOW COSTS
+
+
+import arcpy
+arcpy.env.workspace=r"E:\new_shrub\Available"  
+arcpy.env.overwriteOutput = True 
+
+featureClasses = arcpy.ListFeatureClasses()
+
+matriz = [["sp_shrub_merge.shp",47.36292204, 0.0299220385], ["cr_shrub_orcdrc1.shp", 47.38296986, 0.049969856], ["fr_shrub.shp",47.3631926,0.0301926], ["gr_shrub.shp",47.36385994, 0.030859944], ["it_shrub.shp",47.36321003, 0.03021003], ["pt_shrub.shp",47.36531403, 0.03231403], ["sl_shrub.shp",47.38942963, 0.056429635], ["tu_shrub_orcdrc1.shp",47.35536757, 0.022367565]] ##coefficients!!!
+
+for i in range (0,7):
+    inTable = matriz[i][0]
+    coef1 = matriz[i][1]
+    coef2 = matriz[i][2]
+    fieldName = "cost"
+    field_names = [f.name for f in arcpy.ListFields(inTable)]
+    slope_field = "slope"
+    #biomass = "avplus"
+    arcpy.AddField_management(inTable,"cost","FLOAT","", "", "", "cost", "NULLABLE", "NON_REQUIRED", "") 
+    #expression = 'float(float(' + str(coef1) + ') - float(!avplus!* ' + str(coef2) + '))'
+    #expression = '1'
+    expression = "IgnoreZero(float(!avplus!), float(!slope!), float(coef1), float(coef2))"
+    codeblock = """def IgnoreZero(val, valSlope, c1, c2):
+       if (val==0):
+           return 0
+       else:
+           r=c1 - val * c2
+           if (valSlope>20):
+               return r*1.3
+           else:   
+               return r"""
+    arcpy.CalculateField_management(inTable, fieldName, expression, "PYTHON_9.3", codeblock)
+
+
+
+Francia	47.3631926	0.0301926
+Portugal	47.36531403, 0.03231403
+Grecia	47.36385994, 0.030859944
+Italia	47.36321003, 0.03021003
+Croacia	47.38296986, 0.049969856
+Eslovenia	47.38942963, 0.056429635
+Turquia	47.35536757, 0.022367565
+España	47.36292204, 0.029922038
+
+import arcpy
+arcpy.env.workspace=r"E:\new_shrub\Available"  
+arcpy.env.overwriteOutput = True 
+
+featureClasses = arcpy.ListFeatureClasses("tu*","All")
+#print featureClasses
+
+matriz = [["tu_shrub_orcdrc1.shp",47.35536757, 0.022367565]] ##coefficients!!!
+
+for i in range (0,1):
+    inTable = matriz[i][0]
+    coef1 = matriz[i][1]
+    coef2 = matriz[i][2]
+    fieldName = "cost"
+    field_names = [f.name for f in arcpy.ListFields(inTable)]
+    slope_field = "slope"
+    #biomass = "avplus"
+    arcpy.AddField_management(inTable,"cost","FLOAT","", "", "", "cost", "NULLABLE", "NON_REQUIRED", "") 
+    #expression = 'float(float(' + str(coef1) + ') - float(!avplus!* ' + str(coef2) + '))'
+    #expression = '1'
+    expression = "IgnoreZero(float(!avplus!), float(!slope!), float(coef1), float(coef2))"
+    codeblock = """def IgnoreZero(val, valSlope, c1, c2):
+       if (val==0):
+           return 0
+       else:
+           r=c1 - val * c2
+           if (valSlope>20):
+               return r*1.3
+           else:   
+               return r"""
+    arcpy.CalculateField_management(inTable, fieldName, expression, "PYTHON_9.3", codeblock)
+
+## stats 
+import os
+import arcpy
+import numpy
+folderPath = r"E:\new_shrub\Available" 
+arcpy.env.workspace=folderPath
+arcpy.env.overwriteOutput = True 
+
+fcLst = arcpy.ListFeatureClasses()
+
+## potential stats  ******************* RUNNING THIIIIISSSSS **************
+
+for fc in fcLst:
+    fieldName = "pNUT"
+    fieldName1 = "dNUT"
+    fieldName2 = "haNUT"
+    arcpy.AddField_management(fc,fieldName,"FLOAT","", "", "", fieldName, "NULLABLE", "NON_REQUIRED", "")  
+    arcpy.AddField_management(fc,fieldName1,"FLOAT","", "", "", fieldName1, "NULLABLE", "NON_REQUIRED", "")
+    arcpy.AddField_management(fc,fieldName2,"FLOAT","", "", "", fieldName2, "NULLABLE", "NON_REQUIRED", "")
+    expression = "miFunc(!NUT2d!, !tyrplus!, !avplus!, !ha!)"
+    codeblock = """def miFunc(miNut2, mipot, midisp, misup):
+        sumtDMpNUT = numpy.sum([r[0] for r in arcpy.da.SearchCursor(fc,["tyrplus", "NUT2d"], where_clause="NUT2d like '" + miNut2 + "'")])   
+        return sumtDMpNUT"""
+    try:
+        arcpy.CalculateField_management(fc, fieldName, expression, "PYTHON_9.3", codeblock)
+    except:
+        print fc
+        continue
+
+## available stats   ********* RUN NEEEEEXTTTTTTT ********************
+
+import os
+import arcpy
+import numpy
+folderPath = r"E:\new_shrub\Available" 
+arcpy.env.workspace=folderPath
+arcpy.env.overwriteOutput = True 
+
+fcLst = arcpy.ListFeatureClasses()
+
+for fc in fcLst:
+    fieldName1 = "dNUT"
+    expression = "miFunc(!NUT2d!, !tyrplus!, !avplus!, !ha!)"
+    codeblock = """def miFunc(miNut2, mipot, midisp, misup):
+        sumtDMdNUT = numpy.sum([r[0] for r in arcpy.da.SearchCursor(fc,["avplus", "NUT2d"], where_clause="NUT2d like '" + miNut2 + "'")])   
+        return sumtDMdNUT"""
+    try:
+        arcpy.CalculateField_management(fc, fieldName1, expression, "PYTHON_9.3", codeblock)
+    except:
+        print fc
+        continue
+
+## surface stats
+import os
+import arcpy
+import numpy
+folderPath = r"E:\new_shrub\Available" 
+arcpy.env.workspace=folderPath
+arcpy.env.overwriteOutput = True 
+
+fcLst = arcpy.ListFeatureClasses()
+
+for fc in fcLst:
+    fieldName2 = "haNUT"
+    expression = "miFunc(!NUT2d!, !tyrplus!, !avplus!, !ha!)"
+    codeblock = """def miFunc(miNut2, mipot, midisp, misup):
+        sumtDMdNUT = numpy.sum([r[0] for r in arcpy.da.SearchCursor(fc,["ha", "NUT2d"], where_clause="NUT2d like '" + miNut2 + "'")])   
+        return sumtDMdNUT"""
+    try:
+        arcpy.CalculateField_management(fc, fieldName2, expression, "PYTHON_9.3", codeblock)
+    except:
+        print fc
+        continue
+
+## Change of name for TFS
+import arcpy
+arcpy.env.workspace=r"E:\TFS_shrub_august\Available" 
+arcpy.env.overwriteOutput = True 
+
+featureClasses = arcpy.ListFeatureClasses()
+
+for fc in featureClasses:
+    fieldName = "thayrplus"
+    try:
+        arcpy.AddField_management(fc,fieldName,"FLOAT","", "", "", fieldName, "NULLABLE", "NON_REQUIRED", "") 
+        expression = 'float(!tyrplus!)'
+        arcpy.CalculateField_management(fc, fieldName, expression, "PYTHON_9.3")
+    except:
+        print fc
+        continue
+
+## dropfields for TFS
+import arcpy
+import os
+import glob
+
+arcpy.env.workspace = r"E:\TFS_shrub_august\Available" 
+
+fclst = arcpy.ListFeatureClasses()
+arcpy.env.overwriteOutput = True
+
+
+for fc in fclst:
+    fcName = fc
+    #print(fc)
+    arcpy.env.overwriteOutput = True
+    output = fc.split(".shp")[0] +"_drop.shp"
+    print output
+    out_workspace = r"E:\TFS_shrub_august\Available" 
+    out_featureclass = os.path.join(out_workspace, 
+                                    os.path.splitext(output)[0])
+    print out_featureclass
+    dropFields = ["tyrplus","pNUT", "dNUT", "haNUT"]
+    try:
+        arcpy.CopyFeatures_management(fc, out_featureclass)
+        arcpy.DeleteField_management(out_featureclass, dropFields)
+    except:
+        print fc + "bad"
+        continue
+
+#### COMPARE TO ENERBIOSCRUB
+## recortamos los círculos de enerbioscrub para estadísticas
+## deletefields irrelevantes en estos
+import arcpy
+import os
+import glob
+
+arcpy.env.workspace = r"E:\new_shrub\Available\enerbioscrub"
+
+fclst = arcpy.ListFeatureClasses()
+arcpy.env.overwriteOutput = True
+
+
+for fc in fclst:
+    fcName = fc
+    #print(fc)
+    arcpy.env.overwriteOutput = True
+    output = fc.split(".shp")[0] +"_drop.shp"
+    print output
+    out_workspace = r"E:\new_shrub\Available\enerbioscrub"
+    out_featureclass = os.path.join(out_workspace, 
+                                    os.path.splitext(output)[0])
+    print out_featureclass
+    dropFields = ["Join_Count","TARGET_FID", "I_orcdrc01", "I_pes"]
+    try:
+        arcpy.CopyFeatures_management(fc, out_featureclass)
+        arcpy.DeleteField_management(out_featureclass, dropFields)
+    except:
+        print fc + "bad"
+        continue
+
+
+## costs in enerbioscrub
+import arcpy
+arcpy.env.workspace=r"E:\new_shrub\Available\enerbioscrub"
+arcpy.env.overwriteOutput = True 
+
+featureClasses = arcpy.ListFeatureClasses()
+
+for fc in featureClasses:
+    inTable = fc
+    coef1 = 47.36292204
+    coef2 = 0.0299220385
+    fieldName = "cost"
+    slope_field = "slope"
+    arcpy.AddField_management(fc,"cost","FLOAT","", "", "", "cost", "NULLABLE", "NON_REQUIRED", "") 
+    #expression = 'float(float(' + str(coef1) + ') - float(!avplus!* ' + str(coef2) + '))'
+    #expression = '1'
+    expression = "IgnoreZero(float(!avplus!), float(!slope!), float(coef1), float(coef2))"
+    codeblock = """def IgnoreZero(val, valSlope, c1, c2):
+       if (val==0):
+           return 0
+       else:
+           r=c1 - val * c2
+           if (valSlope>20):
+               return r*1.3
+           else:   
+               return r"""
+    arcpy.CalculateField_management(fc, fieldName, expression, "PYTHON_9.3", codeblock)
+
+##
+import os
+import arcpy
+import numpy
+folderPath = r"E:\new_shrub\Available\enerbioscrub" 
+arcpy.env.workspace=folderPath
+arcpy.env.overwriteOutput = True 
+
+fcLst = arcpy.ListFeatureClasses()
+
+## potential stats: check by CORINE code = MEAN (tyrplus/ ha)  
+
+for fc in fcLst:
+    fieldName4 = "pha"
+    arcpy.AddField_management(fc,fieldName4,"FLOAT","", "", "", fieldName4, "NULLABLE", "NON_REQUIRED", "")
+    expression = 'float(!tyrplus!/!ha!)'
+    try:
+        arcpy.CalculateField_management(fc, fieldName4, expression, "PYTHON_9.3")
+    except:
+        print fc
+        continue
+
+import os
+import arcpy
+import numpy
+folderPath = r"E:\new_shrub\Available\enerbioscrub" 
+arcpy.env.workspace=folderPath
+arcpy.env.overwriteOutput = True 
+
+fcLst = arcpy.ListFeatureClasses()
+
+## potential stats: check by CORINE code = MEAN (avplus/ ha)  
+
+for fc in fcLst:
+    fieldName4 = "dha"
+    arcpy.AddField_management(fc,fieldName4,"FLOAT","", "", "", fieldName4, "NULLABLE", "NON_REQUIRED", "")
+    expression = 'float(!avplus!/!ha!)'
+    try:
+        arcpy.CalculateField_management(fc, fieldName4, expression, "PYTHON_9.3")
+    except:
+        print fc
+        continue
+
+import os
+import arcpy
+import numpy
+folderPath = r"E:\new_shrub\Available\enerbioscrub" 
+arcpy.env.workspace=folderPath
+arcpy.env.overwriteOutput = True 
+
+fcLst = arcpy.ListFeatureClasses() 
+## potential stats: check by CORINE code = MEAN (tyrplus/ ha)  
+for fc in fcLst:
+    fieldName = "phaCORINE"
+    arcpy.AddField_management(fc,fieldName,"FLOAT","", "", "", fieldName, "NULLABLE", "NON_REQUIRED", "")
+    expression = "miFunc(!code_12!, !pha!)"
+    codeblock = """def miFunc(miCORINE, mipotha):
+        meanpCORINE = numpy.mean([r[0] for r in arcpy.da.SearchCursor(fc,["pha", "code_12"], where_clause="code_12 like '" + miCORINE + "'")])   
+        return meanpCORINE"""
+    try:
+        arcpy.CalculateField_management(fc, fieldName, expression, "PYTHON_9.3", codeblock)
+    except:
+        print fc
+        continue
+
+import os
+import arcpy
+import numpy
+folderPath = r"E:\new_shrub\Available\enerbioscrub" 
+arcpy.env.workspace=folderPath
+arcpy.env.overwriteOutput = True 
+
+fcLst = arcpy.ListFeatureClasses() 
+## potential stats: check by CORINE code = MEAN (avplus/ ha)  
+for fc in fcLst:
+    fieldName = "dhaCORINE"
+    arcpy.AddField_management(fc,fieldName,"FLOAT","", "", "", fieldName, "NULLABLE", "NON_REQUIRED", "")
+    expression = "miFunc(!code_12!, !dha!)"
+    codeblock = """def miFunc(miCORINE, mipotha):
+        meanpCORINE = numpy.mean([r[0] for r in arcpy.da.SearchCursor(fc,["dha", "code_12"], where_clause="code_12 like '" + miCORINE + "'")])   
+        return meanpCORINE"""
+    try:
+        arcpy.CalculateField_management(fc, fieldName, expression, "PYTHON_9.3", codeblock)
+    except:
+        print fc
+        continue
+
+## write to excel file
+import arcpy
+import os
+import itertools
+import csv
+import numpy
+folderPath = r"E:\new_shrub\Available\enerbioscrub" 
+arcpy.env.workspace = folderPath
+ 
+nut_temp=""
+fcLst = arcpy.ListFeatureClasses()
+
+for fc in fcLst:
+    nut_temp=""
+    #print(os.path.join(root, fc.split(".shp")[0]))    
+    outname = fc.split(".shp")[0] +"_stats.csv" 
+    fullPath = os.path.join(folderPath, outname)
+    print fullPath
+    csvLocation = fullPath
+    with open(csvLocation,'wb') as openCSV:
+        a = csv.writer(openCSV)
+        #message = [['code_12','phaCORINE','pot','available']]
+        message = [['code_12','phaCORINE']] # only text message as header
+        a.writerows(message)
+        try:
+            #fields = ["code_12", "phaCORINE", "dhaCORINE", "haCORINE"]
+            fields = ["code_12", "phaCORINE"]
+            with arcpy.da.SearchCursor(fc, fields) as cursor:
+                for row in cursor:
+                    if row[0]!=nut_temp:
+                        #message = [[row[0],row[1],row[2],row[3]]] # only text message as header
+                        message = [[row[0],row[1]]] # only text message as header
+                        a.writerows(message)
+                    nut_temp=row[0]
+        except:
+            print fc
+            continue
+
+import arcpy
+import os
+import itertools
+import csv
+import numpy
+folderPath = r"E:\new_shrub\Available\enerbioscrub" 
+arcpy.env.workspace = folderPath
+ 
+nut_temp=""
+fcLst = arcpy.ListFeatureClasses()
+
+for fc in fcLst:
+    nut_temp=""
+    #print(os.path.join(root, fc.split(".shp")[0]))    
+    outname = fc.split(".shp")[0] +"_statsav.csv" 
+    fullPath = os.path.join(folderPath, outname)
+    print fullPath
+    csvLocation = fullPath
+    with open(csvLocation,'wb') as openCSV:
+        a = csv.writer(openCSV)
+        #message = [['code_12','dhaCORINE','pot','available']]
+        message = [['code_12','dhaCORINE']] # only text message as header
+        a.writerows(message)
+        try:
+            #fields = ["code_12", "phaCORINE", "dhaCORINE", "haCORINE"]
+            fields = ["code_12", "dhaCORINE"]
+            with arcpy.da.SearchCursor(fc, fields) as cursor:
+                for row in cursor:
+                    if row[0]!=nut_temp:
+                        #message = [[row[0],row[1],row[2],row[3]]] # only text message as header
+                        message = [[row[0],row[1]]] # only text message as header
+                        a.writerows(message)
+                    nut_temp=row[0]
+        except:
+            print fc
+            continue
+
+
+## available stats   ********* RUN NEEEEEXTTTTTTT ********************
+
+import os
+import arcpy
+import numpy
+folderPath = r"E:\new_shrub\Available" 
+arcpy.env.workspace=folderPath
+arcpy.env.overwriteOutput = True 
+
+fcLst = arcpy.ListFeatureClasses()
+
+for fc in fcLst:
+    fieldName1 = "dNUT"
+    expression = "miFunc(!NUT2d!, !tyrplus!, !avplus!, !ha!)"
+    codeblock = """def miFunc(miNut2, mipot, midisp, misup):
+        sumtDMdNUT = numpy.sum([r[0] for r in arcpy.da.SearchCursor(fc,["avplus", "NUT2d"], where_clause="NUT2d like '" + miNut2 + "'")])   
+        return sumtDMdNUT"""
+    try:
+        arcpy.CalculateField_management(fc, fieldName1, expression, "PYTHON_9.3", codeblock)
+    except:
+        print fc
+        continue
+
+## surface stats
+import os
+import arcpy
+import numpy
+folderPath = r"E:\new_shrub\Available" 
+arcpy.env.workspace=folderPath
+arcpy.env.overwriteOutput = True 
+
+fcLst = arcpy.ListFeatureClasses()
+
+for fc in fcLst:
+    fieldName2 = "haNUT"
+    expression = "miFunc(!NUT2d!, !tyrplus!, !avplus!, !ha!)"
+    codeblock = """def miFunc(miNut2, mipot, midisp, misup):
+        sumtDMdNUT = numpy.sum([r[0] for r in arcpy.da.SearchCursor(fc,["ha", "NUT2d"], where_clause="NUT2d like '" + miNut2 + "'")])   
+        return sumtDMdNUT"""
+    try:
+        arcpy.CalculateField_management(fc, fieldName2, expression, "PYTHON_9.3", codeblock)
+    except:
+        print fc
+        continue
+
+## write to excel file
+import arcpy
+import os
+import itertools
+import csv
+import numpy
+folderPath = r"E:\agriculture\Mapas_modificados_180412_disponible"
+arcpy.env.workspace = folderPath
+ 
+nut_temp=""
+fcLst = arcpy.ListFeatureClasses("*Mix*","All")
+
+for fc in fcLst:
+    nut_temp=""
+    #print(os.path.join(root, fc.split(".shp")[0]))    
+    outname = fc.split(".shp")[0] +"_stats.csv" 
+    fullPath = os.path.join(folderPath, outname)
+    print fullPath
+    csvLocation = fullPath
+    with open(csvLocation,'wb') as openCSV:
+        a = csv.writer(openCSV)
+        message = [['fc','ha','pot','available']] # only text message as header
+        a.writerows(message)
+        try:
+            fields = ["Nut2", "haNUT", "pNUT", "dNUT"]
+            with arcpy.da.SearchCursor(fc, fields) as cursor:
+                for row in cursor:
+                    if row[0]!=nut_temp:
+                        message = [[row[0],row[1],row[2],row[3]]] # only text message as header
+                        a.writerows(message)
+                    nut_temp=row[0]
+        except:
+            print fc
+            continue
