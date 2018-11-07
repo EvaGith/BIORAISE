@@ -1,0 +1,171 @@
+import arcpy
+import os
+arcpy.env.workspace = r"E:\slopes\modelos_ETRS89_biomasa\vector_models"
+fcList = arcpy.ListFeatureClasses("*sl_aspontes*")
+for fc in fcList:
+    arcpy.CheckOutExtension("Spatial")
+    arcpy.AddField_management(fc,"ha","Double")   
+    expression1 = "{0}".format("!SHAPE.area@HECTARES!")        
+    arcpy.CalculateField_management(fc, "ha", expression1, "PYTHON")  
+    arcpy.MakeFeatureLayer_management(fc, "lyr") 
+    arcpy.SelectLayerByAttribute_management("lyr", "NEW_SELECTION", ' "ha" > 30 ')
+    outname = fc[:-4] +"_gt30.shp"
+    arcpy.CopyFeatures_management("lyr", outname)
+    print "done"
+
+## MFE RÓTULOS & SUBPISOS SELECTION
+291, 303, 306 rótulos 1, 2 y 3, subpisos 1, 2,3
+
+## 303 selection
+import arcpy
+import os
+arcpy.env.workspace = r"C:\Users\Eva\Desktop\upv\GuadaLaJara"
+fcList = arcpy.ListFeatureClasses("mfe*")
+for fc in fcList:
+    outpath = r"C:\Users\Eva\Desktop\upv\GuadaLaJara\MFE303"
+    outname = fc[:-4] +"_303.shp"
+    outfile = os.path.join(outpath, outname)  
+    try:
+        lyr = fc[:-4] + "_lyr"
+        arcpy.MakeFeatureLayer_management(fc, lyr) 
+        arcpy.SelectLayerByAttribute_management(lyr, "NEW_SELECTION", ' "ROTULO1" = 303 OR "ROTULO2" = 303 OR "ROTULO3" = 303 ')
+        arcpy.CopyFeatures_management(lyr, outfile)
+    except:
+        print(arcpy.GetMessages())
+
+import arcpy
+import os
+arcpy.env.workspace = r"C:\Users\Eva\Desktop\upv\GuadaLaJara"
+fcList = arcpy.ListFeatureClasses("mfe*")
+for fc in fcList:
+    outpath = r"C:\Users\Eva\Desktop\upv\GuadaLaJara\MFE303\SUBPISOS"
+    outname = fc[:-4] +"_303.shp"
+    outfile = os.path.join(outpath, outname)  
+    try:
+        lyr = fc[:-4] + "_lyr"
+        arcpy.MakeFeatureLayer_management(fc, lyr) 
+        arcpy.SelectLayerByAttribute_management(lyr, "NEW_SELECTION", ' "SUBPISO1" = 303 OR "SUBPISO2" = 303 OR "SUBPISO3" = 303 ')
+        arcpy.CopyFeatures_management(lyr, outfile)
+    except:
+        print(arcpy.GetMessages())
+
+### 306 selection
+import arcpy
+import os
+arcpy.env.workspace = r"C:\Users\Eva\Desktop\upv\GuadaLaJara"
+fcList = arcpy.ListFeatureClasses("mfe*")
+for fc in fcList:
+    outpath = r"C:\Users\Eva\Desktop\upv\GuadaLaJara\MFE306"
+    outname = fc[:-4] +"_306.shp"
+    outfile = os.path.join(outpath, outname)  
+    try:
+        lyr = fc[:-4] + "306_lyr"
+        arcpy.MakeFeatureLayer_management(fc, lyr) 
+        arcpy.SelectLayerByAttribute_management(lyr, "NEW_SELECTION", ' "ROTULO1" = 306 OR "ROTULO2" = 306 OR "ROTULO3" = 306 ')
+        arcpy.CopyFeatures_management(lyr, outfile)
+    except:
+        print(arcpy.GetMessages())
+
+import arcpy
+import os
+arcpy.env.workspace = r"C:\Users\Eva\Desktop\upv\GuadaLaJara"
+fcList = arcpy.ListFeatureClasses("mfe*")
+for fc in fcList:
+    outpath = r"C:\Users\Eva\Desktop\upv\GuadaLaJara\MFE306\SUBPISOS"
+    outname = fc[:-4] +"_306.shp"
+    outfile = os.path.join(outpath, outname)  
+    try:
+        lyr = fc[:-4] + "_lyr"
+        arcpy.MakeFeatureLayer_management(fc, lyr) 
+        arcpy.SelectLayerByAttribute_management(lyr, "NEW_SELECTION", ' "SUBPISO1" = 306 OR "SUBPISO2" = 306 OR "SUBPISO3" = 306 ')
+        arcpy.CopyFeatures_management(lyr, outfile)
+    except:
+        print(arcpy.GetMessages())
+
+### 291 selection
+import arcpy
+import os
+arcpy.env.workspace = r"C:\Users\Eva\Desktop\upv\GuadaLaJara"
+fcList = arcpy.ListFeatureClasses("mfe*")
+for fc in fcList:
+    outpath = r"C:\Users\Eva\Desktop\upv\GuadaLaJara\MFE291"
+    outname = fc[:-4] +"_291.shp"
+    outfile = os.path.join(outpath, outname)  
+    try:
+        lyr = fc[:-4] + "291_lyr"
+        arcpy.MakeFeatureLayer_management(fc, lyr) 
+        arcpy.SelectLayerByAttribute_management(lyr, "NEW_SELECTION", ' "ROTULO1" = 291 OR "ROTULO2" = 291 OR "ROTULO3" = 291 ')
+        arcpy.CopyFeatures_management(lyr, outfile)
+    except:
+        print(arcpy.GetMessages())
+
+import arcpy
+import os
+arcpy.env.workspace = r"C:\Users\Eva\Desktop\upv\GuadaLaJara"
+fcList = arcpy.ListFeatureClasses("mfe*")
+for fc in fcList:
+    outpath = r"C:\Users\Eva\Desktop\upv\GuadaLaJara\MFE291\SUBPISOS"
+    outname = fc[:-4] +"_291.shp"
+    outfile = os.path.join(outpath, outname)  
+    try:
+        lyr = fc[:-4] + "_lyr"
+        arcpy.MakeFeatureLayer_management(fc, lyr) 
+        arcpy.SelectLayerByAttribute_management(lyr, "NEW_SELECTION", ' "SUBPISO1" = 291 OR "SUBPISO2" = 291 OR "SUBPISO3" = 291 ')
+        arcpy.CopyFeatures_management(lyr, outfile)
+    except:
+        print(arcpy.GetMessages())
+
+## empty outputs generated: check for empty (DELETED)
+## generate surfaces (something wrong with os.walk doesn't pick up subfolders items
+import arcpy
+import os
+top_folder = r"C:\Users\Eva\Desktop\upv\GuadaLaJara"
+arcpy.env.workspace = top_folder
+walk = arcpy.da.Walk(top_folder, topdown=True)
+for folderPath, folderNames, fileNames in walk:
+    fcs = [fc for fc in arcpy.ListFeatureClasses() if fc.endswith('_303.shp') or fc.endswith('_301.shp') or fc.endswith('_291.shp')]
+    print fcs
+        for fc in fcs:
+             arcpy.CheckOutExtension("Spatial")
+             arcpy.AddField_management(fc,"ha","Double")   
+             expression = "{0}".format("!SHAPE.area@HECTARES!")        
+             arcpy.CalculateField_management(fc, "ha", expression, "PYTHON")  
+## this works
+import arcpy
+import os
+top_folder = r"C:\Users\Eva\Desktop\upv\GuadaLaJara\MFE303\SUBPISOS"
+arcpy.env.workspace = top_folder
+walk = arcpy.da.Walk(top_folder, topdown=True)
+for folderPath, folderNames, fileNames in walk:
+    fcs = [fc for fc in arcpy.ListFeatureClasses()]
+    print fcs
+    for fc in fcs:
+         arcpy.CheckOutExtension("Spatial")
+         arcpy.AddField_management(fc,"ha","Double")   
+         expression = "{0}".format("!SHAPE.area@HECTARES!")        
+         arcpy.CalculateField_management(fc, "ha", expression, "PYTHON")  
+
+## sum hectares for rotulos/subpisos
+#sum_hectares
+import os
+import numpy
+import arcpy
+import itertools
+import csv
+folderPath = r"C:\Users\Eva\Desktop\upv\GuadaLaJara\MFE303\SUBPISOS"
+arcpy.env.workspace = folderPath
+
+List = [] 
+fcList = arcpy.ListFeatureClasses()
+for fc in fcList:
+    List.append(fc)   
+    field = arcpy.da.TableToNumPyArray (fc, "ha", skip_nulls=True)
+    sum = field["ha"].sum()
+    sum_ha = sum.astype(float)
+    print sum_ha 
+
+## consider merge layers??
+
+
+## GUADALAJARA LAYER (NEW MFE25)
+USOS_GENER NOT CULTIVOS, ARTIFICIAL,  & FORM_ARB_D "No Arbolado"
