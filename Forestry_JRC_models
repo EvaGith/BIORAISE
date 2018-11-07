@@ -1,0 +1,101 @@
+import arcpy
+arcpy.env.workspace="F:/bioraise/landcover/forestry_shps_teselizado/JRC_EU8_grid_forestry/JRC_EU8_grid_forestry.gdb"
+arcpy.env.overwriteOutput = True 
+
+featureClasses = arcpy.ListFeatureClasses()
+for fc in featureClasses:
+    arcpy.AddField_management(fc,"AGBNPPMM","FLOAT","", "", "", "AGBNPPMM", "NULLABLE", "NON_REQUIRED", "")
+
+#That would create a text field called "AGBNPPMM" in each feature class in your current workspace.
+
+#now we are missing to REPLACE THE NUMBERS OF THE MODELS FOR THE 21 SHAPEFILES (9TH NOVEMBER ONWARDS PREPARE THIS)
+
+import arcpy
+arcpy.env.workspace="F:/bioraise/landcover/forestry_shps_teselizado/JRC_EU8_grid_forestry/JRC_EU8_grid_forestry.gdb"
+
+matriz = [["abies_grid",0.0037,85.485],["abiesalba_grid",0.0039,85.94],["castanea_grid",0.0042,70.484],["fagus_grid",0.0043,70.155],["phalepensis_grid",0.0045,99.832],["ppinaster_grid",0.0055,34.629],["ppinea_grid",0.0044,48.855],["psylvestris_grid",0.0032,68.7],["pseudotsuga_grid",0.0038,163.62],["qcerris_grid",0.0044,33.774],["qfaginea_grid",0.0042,-88.69],["qilex_grid",0.0041,62.936],["qpetraea_grid",0.0048,45.644],["qpyrenaica_grid",0.0033,5.0445],["qrobur_grid",0.0048,44.032],["qsuber_grid",0.0039,64.573],["larix_grid",0.0028,10.441],["pcembra_grid",0.0009,95.374],["pmugo_grid",0.0047,-26.799],["qfrainetto_grid",0.009,-524.44],["qpubescens_grid",0.0045,10.363]]
+
+for i in range (0,21):
+	inTable = matriz[i][0]
+	valor = matriz[i][1]
+	factor=matriz[i][2]
+	fieldName = "AGBNPPMM"
+	expression = "getClass(float((valor*!NPP!*!ha!)+factor))"
+	codeblock = """def getClass(AGBNPPMM):
+    		if AGBNPPMM==factor:
+     	 	  return 0
+    		else:
+      		  return AGBNPPMM"""
+	var1=inTable
+
+	arcpy.CalculateField_management(var1, "AGBNPPMM", expression, "PYTHON_9.3", codeblock)
+
+---NPPMM REPLACE
+
+import arcpy
+arcpy.env.workspace="F:/bioraise/landcover/forestry_shps_teselizado/JRC_EU8_grid_forestry/JRC_EU8_grid_forestry.gdb"
+arcpy.env.overwriteOutput = True 
+
+matriz = [["abies_grid",0.001,44.85],["abiesalba_grid",0.001,36.164],["castanea_grid",0.0011,21.848],["fagus_grid",0.0007,18.265],["phalepensis_grid",0.0004,15.248],["ppinaster_grid",0.0008,26.236],["ppinea_grid",0.0015,13.044],["psylvestris_grid",0.0005,22.113],["pseudotsuga_grid",0.0008,11.955],["qcerris_grid",0.0007,14.385],["qfaginea_grid",0.0012,72.297],["qilex_grid",0.0011,80.611],["qpetraea_grid",0.0007,8.5215],["qpyrenaica_grid",0.0027,106.56],	["qrobur_grid",0.0008,7.0243],["qsuber_grid",0.0004,23.781],["larix_grid",0.0012,27.352],["pcembra_grid",0.0006,10.848],["pmugo_grid",0.0006,18.628],["qfrainetto_grid",0.0027,25.762],["qpubescens_grid",0.0025,45.4]]
+
+for i in range (0,21):
+	inTable = matriz[i][0]
+	valor = matriz[i][1]
+	factor=matriz[i][2]
+	fieldName = "NPPMM"
+	expression = "getClass(float((valor*!NPP!*!ha!)+factor))"
+	codeblock = """def getClass(NPPMM):
+    		if NPPMM==factor:
+     	 	  return 0
+    		else:
+      		  return NPPMM"""
+	var1=inTable
+
+	arcpy.CalculateField_management(var1, "NPPMM", expression, "PYTHON_9.3", codeblock)
+
+
+---AGBMM REPLACE
+
+import arcpy
+arcpy.env.workspace="F:/bioraise/landcover/forestry_shps_teselizado/JRC_EU8_grid_forestry/JRC_EU8_grid_forestry.gdb"
+arcpy.env.overwriteOutput = True 
+
+matriz = [["abies_grid",0.2278,55.801],["abiesalba_grid",0.239,33.554],["castanea_grid",0.1981,65.715],["fagus_grid",0.1179,42.073],["phalepensis_grid",0.0636,26.079],["ppinaster_grid",0.138,32.086],["ppinea_grid",0.314,45.068],["psylvestris_grid",0.1491,11.543],["pseudotsuga_grid",0.1891,-14.55],["qcerris_grid",0.1154,37.699],["qfaginea_grid",0.197,115.46],["qilex_grid",0.2242,86.371],["qpetraea_grid",0.107,37.181],["qpyrenaica_grid",0.4533,277.94],["qrobur_grid",0.132,21.6],["qsuber_grid",0.058,29.803],["larix_grid",0.3999,37.396],["pcembra_grid",0.6115,-47.501],["pmugo_grid",0.122,22.195],["qfrainetto_grid",0.2917,133.63],["qpubescens_grid",0.3902,158.31]]
+
+for i in range (0,21):
+	inTable = matriz[i][0]
+	valor = matriz[i][1]
+	factor=matriz[i][2]
+	fieldName = "AGBMM"
+	expression = "getClass(float((valor*(!AGB!*!ha!))+factor))"
+	codeblock = """def getClass(AGBMM):
+    		if AGBMM==factor:
+     	 	  return 0
+    		else:
+      		  return AGBMM"""
+	var1=inTable
+
+	arcpy.CalculateField_management(var1, "AGBMM", expression, "PYTHON_9.3", codeblock)
+
+---ahora creando un campo nuevo AGBc/NPPc/AGBNPPc para hacer que el resultado del modelo /ha * 20 (suponiendo un turno de 20 años)
+
+import os
+import arcpy
+import itertools
+arcpy.env.workspace = r"F:/bioraise/landcover/forestry_shps_teselizado/JRC_EU8_grid_forestry/JRC_EU8_grid_forestry.gdb"
+
+fcLst = arcpy.ListFeatureClasses()
+print fcLst
+for fc in fcLst:
+    name1 = 'AGBt20'
+    name2 = 'NPPt20'
+    name3 = 'AGBNPPt20'
+    expression1 = '((!AGBMM!/!ha!)*20)'
+    expression2 = '((!NPPMM!/!ha!)*20)'
+    expression3 = '((!AGBNPPMM!/!ha!)*20)'
+    arcpy.AddField_management(fc, name1, "FLOAT","", "", "", name1, "NULLABLE", "NON_REQUIRED", "")
+    arcpy.CalculateField_management(fc, name1, expression1, "PYTHON_9.3", "")
+    arcpy.AddField_management(fc, name2, "FLOAT","", "", "", name2, "NULLABLE", "NON_REQUIRED", "")
+    arcpy.CalculateField_management(fc, name2, expression2, "PYTHON_9.3", "")
+    arcpy.AddField_management(fc, name3, "FLOAT","", "", "", name3, "NULLABLE", "NON_REQUIRED", "")
+    arcpy.CalculateField_management(fc, name3, expression3, "PYTHON_9.3", "")
