@@ -1,0 +1,1673 @@
+import os
+import arcpy
+import itertools
+import csv
+import numpy
+folderPath = r"F:\bioraise\landcover\corine\corine_grid\agriculture_february"
+arcpy.env.workspace=folderPath
+arcpy.env.overwriteOutput = True 
+
+fcLst = arcpy.ListFeatureClasses()
+
+for fc in fcLst:
+    expression = "miFunc(!Nut2!, !TDMHA!, !EUSTATha!, !ha!)"
+    codeblock = """def miFunc(miNut2, miTD, miEU, miHA):
+        sumHA = numpy.sum([r[0] for r in arcpy.da.SearchCursor(fc,["ha", "Nut2"], where_clause="Nut2 like '" + miNut2 + "'")])   
+        sumEU = numpy.sum([r[0] for r in arcpy.da.SearchCursor(fc,["EUSTATha", "Nut2"], where_clause="Nut2 like '" + miNut2 + "'")])
+        if sumEU > sumHA:
+            return miTD*miHA
+        else:
+            return miTD*miEU
+        """
+    arcpy.CalculateField_management(fc, "tDMpp1", expression, "PYTHON_9.3", codeblock)
+
+
+
+---mismo pero un poco más largo
+
+import os
+import arcpy
+import itertools
+import csv
+import numpy
+folderPath = r"F:\bioraise\landcover\corine\corine_grid\agriculture_february"
+arcpy.env.workspace=folderPath
+arcpy.env.overwriteOutput = True 
+
+fcLst = arcpy.ListFeatureClasses()
+print fcLst
+
+for fc in fcLst:
+    arcpy.AddField_management(fc,"sumaHa","FLOAT","", "", "", "sumaHa", "NULLABLE", "NON_REQUIRED", "")
+    expression = "miFunc(!Nut2!, !TDMHA!, !EUSTATha!, !ha!)"
+    codeblock = """def miFunc(miNut2, miTD, miEU, miHA):
+        sum0 = [r[0] for r in arcpy.da.SearchCursor(fc,["ha", "Nut2"], where_clause="Nut2 like '" + miNut2 + "'")]
+        sumHA = numpy.sum(sum0)
+        sum0 = [r[0] for r in arcpy.da.SearchCursor(fc,["EUSTATha", "Nut2"], where_clause="Nut2 like '" + miNut2 + "'")]
+        sumEU = numpy.sum(sum0)
+        re=0
+        if sumEU > sumHA:
+            re=miTD*miHA
+        else:
+            re=miTD*miEU
+        return re
+        """
+    arcpy.CalculateField_management(fc, "tDMpp1", expression, "PYTHON_9.3", codeblock)
+
+## WORKFLOW
+1. importar tablas dbf para cada código corine (done)
+
+2. HABRÍA QUE HACER UN JOIN field (done)
+CON !Nut2! en el shape y !NUTS_ID! en el dbf
+así tendríamos también los campos de los dbfs (que pueden estar repetidos)
+
+import arcpy
+import os
+#arcpy.env.workspace = r"K:\bioraise_forest_models\Forestry_corine_new.gdb"
+arcpy.env.workspace = r"F:\bioraise\landcover\corine\corine_grid\agriculture_february"
+ws = arcpy.env.workspace
+fcl = arcpy.ListFeatureClasses()
+tbl = arcpy.ListTables()
+#fieldList = ["AGB","BDRLOG","biomasar","BDTICM","CRFVOL","dem","GlobR","NPP","OCDENS","OCSTHA30","slope","TEXMHT"]
+#fieldList = ["AGB","BDRLOG","biomasar","BDTICM","CRFVOL","GlobR","NPP","OCDENS","OCSTHA30","TEXMHT"]
+
+for table in tbl:
+
+    basename = table.split("_")[0] #split name of tables and only take the first word as a basename 
+    basename1 = table.split("_")[1] #split name of tables and only take the second word as a basename: 
+    basename2 = table.split("_")[-1] # AGB
+    inFeatures = os.path.join(ws, basename +"_" + basename1) #The feature class to which the join table will be joined
+    print inFeatures
+    joinField = "NUT2_1" #The field in the input table on which the join will be based
+    joinTable = os.path.join(ws, basename +"_" + basename1 +"_" + basename2) #The table to be joined to the input table
+    join_field = "OBJECTID_1" #The field in the join table that contains the values on which the join will be based
+    #JoinField "JoinField_management (in_data, in_field, join_table, join_field, {fields})"
+    arcpy.JoinField_management(inFeatures , joinField , joinTable , join_field, fieldList)
+
+4. código de percent, para repartir estas hectáreas proporcionalmente 
+
+import arcpy, os, numpy
+from arcpy import env
+ws = r"F:\bioraise\landcover\corine\corine_grid\agriculture_february"
+arcpy.env.workspace = ws
+fcList = arcpy.ListFeatureClasses()
+
+for fc in fcList:
+    # Convert to numpy array.  "ha" is the field name
+    field = arcpy.da.TableToNumPyArray (fc, "ha", skip_nulls=True)
+    expression = "miFunc(!NUTS_ID!, !TDMHA!, !EUSTATha!, !ha!)"
+    codeblock = """def miFunc(miNut2, miTD, miEU, miHA):
+        sum0 = [r[0] for r in arcpy.da.SearchCursor(fc,["ha", "NUTS_ID"], where_clause="NUTS_ID like '" + miNut2 + "'")]
+        sumHA = numpy.sum(sum0)
+        return sumHA"""
+    name1 = 'percentha'  
+    expression1 = '!ha!/sumHA'  
+    arcpy.AddField_management(fc, name1, "FLOAT","", "", "", name1, "NULLABLE", "NON_REQUIRED", "")
+    arcpy.CalculateField_management(fc, name1, expression1, "PYTHON_9.3", codeblock)
+
+import arcpy, os, numpy
+from arcpy import env
+ws = r"F:\bioraise\landcover\corine\corine_grid\agriculture_february"
+arcpy.env.workspace = ws
+fcList = arcpy.ListFeatureClasses()
+
+for fc in fcList:
+    name1 = 'percentha'  
+    expression1 = '!ha!/!sumha!'  
+    arcpy.AddField_management(fc, name1, "FLOAT","", "", "", name1, "NULLABLE", "NON_REQUIRED", "")
+    arcpy.CalculateField_management(fc, name1, expression1, "PYTHON_9.3")
+
+5. hay que repartir las hectáreas de eurostat correctas
+
+import os
+import arcpy
+import itertools
+arcpy.env.workspace = r"F:\bioraise\landcover\corine\corine_grid\agriculture_february"
+fcList = arcpy.ListFeatureClasses()
+fcs = [fc for fc in arcpy.ListFeatureClasses() if not fc.startswith('Mix')]
+for fc in fcs:
+    field_name = 'EUHA' #'HA_EUROSTA'
+    name = 'distEUha'
+    expression = "miFunc(!NUTS_ID!, !EUHA!, !percentha!, !ha!)"
+    codeblock = """def miFunc(miNut2, miEUHA, mipercent, miCORINEha):
+        d = mipercent * miEUHA
+        return d""" 
+    arcpy.AddField_management(fc, name, "FLOAT","", "", "", name, "NULLABLE", "NON_REQUIRED", "")
+    arcpy.CalculateField_management(fc, name, expression, "PYTHON_9.3", codeblock)
+
+
+###POTENCIAL DONE
+import os
+import arcpy
+import itertools
+arcpy.env.workspace = r"F:\bioraise\landcover\corine\corine_grid\agriculture_february"
+fcList = arcpy.ListFeatureClasses()
+fcs = [fc for fc in arcpy.ListFeatureClasses() if not fc.startswith('Mix')]
+for fc in fcs:
+    field_name = 'EUHA' #'HA_EUROSTA'
+    name = 'tDMpf'
+    expression = "miFunc(!NUTS_ID!, !distEUha!, !TDMHA_1!, !ha!)"
+    codeblock = """def miFunc(miNut2, midistributionEUHA, miproductivity, miCORINEha):
+        d = miproductivity * midistributionEUHA
+        return d""" 
+    arcpy.AddField_management(fc, name, "FLOAT","", "", "", name, "NULLABLE", "NON_REQUIRED", "")
+    arcpy.CalculateField_management(fc, name, expression, "PYTHON_9.3", codeblock)
+
+###POTENCIAL CON CONDICIONAL HECTÁREAS EUROSTAT > CORINE
+import os
+import arcpy
+import itertools
+import csv
+arcpy.env.workspace = r"F:\bioraise\landcover\corine\corine_grid\agriculture_february"
+arcpy.env.overwriteOutput = True 
+
+fcs = [fc for fc in arcpy.ListFeatureClasses() if not fc.startswith('Mix')]
+for fc in fcs:
+    fieldName = "tDMpf1"
+    arcpy.AddField_management(fc,"tDMpf1","FLOAT","", "", "", "tDMpf1", "NULLABLE", "NON_REQUIRED", "")  
+    expression = "POT(float(!sumEUha!), float(!sumha!), float(!ha!),float(!TDMHA!), float(!tDMpf!))"
+    codeblock = """def POT(valsumEUha, valsumCORha, valha, valTDMHA, valtDMpf):
+       if (valsumEUha < valsumCORha):
+           tDMpf1 = valtDMpf
+           return tDMpf1
+       else: 
+           tDMpf1 = valha * valTDMHA
+           return tDMpf1"""
+    try:
+       arcpy.CalculateField_management(fc, fieldName, expression, "PYTHON_9.3", codeblock)
+    except:
+       print fc
+       continue
+
+###DISPONIBLE DONE
+import os
+import arcpy
+import itertools
+arcpy.env.workspace = r"F:\bioraise\landcover\corine\corine_grid\agriculture_february"
+fcList = arcpy.ListFeatureClasses()
+fcs = [fc for fc in arcpy.ListFeatureClasses() if not fc.startswith('Mix')]
+for fc in fcs:
+    field_name = 'EUHA' #'HA_EUROSTA'
+    name = 'tDMdf'
+    expression = "miFunc(!NUTS_ID!, !tDMpf!, !PCT!, !ha!)"
+    codeblock = """def miFunc(miNut2, mipotencial, miconstraint, miCORINEha):
+        d = mipotencial * miconstraint
+        return d""" 
+    arcpy.AddField_management(fc, name, "FLOAT","", "", "", name, "NULLABLE", "NON_REQUIRED", "")
+    arcpy.CalculateField_management(fc, name, expression, "PYTHON_9.3", codeblock)
+
+#DISPONIBLE CON EL CONDICIONAL EN EL POTENCIAL
+import os
+import arcpy
+import itertools
+arcpy.env.workspace = r"F:\bioraise\landcover\corine\corine_grid\agriculture_february"
+fcList = arcpy.ListFeatureClasses()
+fcs = [fc for fc in arcpy.ListFeatureClasses() if not fc.startswith('Mix')]
+for fc in fcs:
+    field_name = 'EUHA' #'HA_EUROSTA'
+    name = 'tDMdf1'
+    expression = "miFunc(!NUTS_ID!, !tDMpf1!, !PCT!, !ha!)"
+    codeblock = """def miFunc(miNut2, mipotencial, miconstraint, miCORINEha):
+        d = mipotencial * miconstraint
+        return d""" 
+    arcpy.AddField_management(fc, name, "FLOAT","", "", "", name, "NULLABLE", "NON_REQUIRED", "")
+    arcpy.CalculateField_management(fc, name, expression, "PYTHON_9.3", codeblock)
+
+
+##SOBRE EL DISPONIBLE: COSTE1, COSTE2, COSTE3 ## costs for 211,212,213 cost1 = €/tDMdd
+
+import os
+import arcpy
+import itertools
+import csv
+folderPath = r"F:\bioraise\landcover\corine\corine_grid\agriculture_february"
+arcpy.env.workspace=folderPath
+arcpy.env.overwriteOutput = True 
+
+fcs = [fc for fc in arcpy.ListFeatureClasses("*21*","All") if not fc.startswith('V')]
+for fc in fcs:
+    fieldName = "cost1"
+    arcpy.AddField_management(fc,"cost1","FLOAT","", "", "", "cost1", "NULLABLE", "NON_REQUIRED", "") # this will be the final potential resources NEEDS CALCULATEFIELD MANAGEMENT AFTER SOIL LOSS RESTRICTIONS AND CARBON RESTRICTIONS
+    expression = "CBALE(float(!tDMdf1!))"
+    codeblock = """def CBALE(valtDMd):
+       if (valtDMd == 0):
+           cost1 = 0
+           return cost1
+       elif (valtDMd < 0.8):
+           cost1 = 40 * (0.8**-0.7)
+           return cost1
+       elif (valtDMd < 14):
+           cost1= 40 * (valtDMd**-0.7)
+           return cost1
+       else: 
+           cost1 = 40 * (14**-0.7)
+           return cost1"""
+    try:
+        arcpy.CalculateField_management(fc, fieldName, expression, "PYTHON_9.3", codeblock)
+    except:
+        print fc
+        continue
+    
+
+##cost1 bale in € (multiplying by tDMdf)
+import os
+import arcpy
+import itertools
+import csv
+
+folderPath = r"F:\bioraise\landcover\corine\corine_grid\agriculture_february"
+arcpy.env.workspace=folderPath
+arcpy.env.overwriteOutput = True 
+
+fcs = [fc for fc in arcpy.ListFeatureClasses("*21*","All") if not fc.startswith('V')]
+for fc in fcs:
+    fieldName = "cost1tDM"
+    arcpy.AddField_management(fc,"cost1tDM","FLOAT","", "", "", "cost1tDM", "NULLABLE", "NON_REQUIRED", "") # this will be the final potential resources NEEDS CALCULATEFIELD MANAGEMENT AFTER SOIL LOSS RESTRICTIONS AND CARBON RESTRICTIONS
+    expression = "CBALETDMDD(float(!tDMdf1!), float(!cost1!))"
+    codeblock = """def CBALETDMDD(valtDMdd, valcost1):
+       if (valtDMdd == 0):
+           cost1tDM = 0
+           return cost1tDM
+       else: 
+           cost1tDM = valcost1 * (valtDMdd)
+           return cost1tDM"""
+    try:
+        arcpy.CalculateField_management(fc, fieldName, expression, "PYTHON_9.3", codeblock)
+    except:
+        print fc
+        continue
+
+##cost2
+import os
+import arcpy
+import itertools
+import csv
+
+folderPath = r"F:\bioraise\landcover\corine\corine_grid\agriculture_february"
+arcpy.env.workspace=folderPath
+arcpy.env.overwriteOutput = True 
+
+fcs = [fc for fc in arcpy.ListFeatureClasses("*21*","All") if not fc.startswith('V')]
+for fc in fcs:
+    fieldName = "cost2"
+    arcpy.AddField_management(fc,"cost2","FLOAT","", "", "", "cost2", "NULLABLE", "NON_REQUIRED", "") # this will be the final potential resources NEEDS CALCULATEFIELD MANAGEMENT AFTER SOIL LOSS RESTRICTIONS AND CARBON RESTRICTIONS
+    expression = "CBALETDMDD(float(!tDMdf1!))"
+    codeblock = """def CBALETDMDD(valtDMdd):
+       if (valtDMdd == 0):
+           cost2 = 0
+           return cost2
+       else: 
+           cost2 = 8.9 * (valtDMdd)
+           return cost2"""
+    try:
+        arcpy.CalculateField_management(fc, fieldName, expression, "PYTHON_9.3", codeblock)
+    except:
+        print fc
+        continue
+## columna con coste2 fijo 8.9
+import os
+import arcpy
+import itertools
+import csv
+
+folderPath = r"F:\bioraise\landcover\corine\corine_grid\agriculture_february"
+arcpy.env.workspace=folderPath
+arcpy.env.overwriteOutput = True 
+
+fcs = [fc for fc in arcpy.ListFeatureClasses("*21*","All") if not fc.startswith('V')]
+for fc in fcs:
+    fieldName = "cost2fix"
+    arcpy.AddField_management(fc,"cost2fix","FLOAT","", "", "", "cost2fix", "NULLABLE", "NON_REQUIRED", "") # this will be the final potential resources NEEDS CALCULATEFIELD MANAGEMENT AFTER SOIL LOSS RESTRICTIONS AND CARBON RESTRICTIONS
+    expression = "CBALETDMDD(float(!tDMdf1!))"
+    codeblock = """def CBALETDMDD(valtDMdd):
+       if (valtDMdd == 0):
+           cost2fix = 0
+           return cost2fix
+       else: 
+           cost2fix = 8.9 
+           return cost2fix"""
+    try:
+        arcpy.CalculateField_management(fc, fieldName, expression, "PYTHON_9.3", codeblock)
+    except:
+        print fc
+        continue
+
+## total cost: cost3
+import os
+import arcpy
+import itertools
+import csv
+
+folderPath = r"F:\bioraise\landcover\corine\corine_grid\agriculture_february"
+arcpy.env.workspace=folderPath
+arcpy.env.overwriteOutput = True 
+
+fcs = [fc for fc in arcpy.ListFeatureClasses("*21*","All") if not fc.startswith('V')]
+for fc in fcs:
+    fieldName = "cost3"
+    arcpy.AddField_management(fc,"cost3","FLOAT","", "", "", "cost3", "NULLABLE", "NON_REQUIRED", "") # this will be the final potential resources NEEDS CALCULATEFIELD MANAGEMENT AFTER SOIL LOSS RESTRICTIONS AND CARBON RESTRICTIONS
+    expression = "(float(!cost1tDM!) + float(!cost2!))"
+    try:
+        arcpy.CalculateField_management(fc, fieldName, expression, "PYTHON_9.3")
+    except:
+        print fc
+        continue
+
+import os
+import arcpy
+import itertools
+import csv
+
+folderPath = r"F:\bioraise\landcover\corine\corine_grid\agriculture_february"
+arcpy.env.workspace=folderPath
+arcpy.env.overwriteOutput = True 
+
+fcs = [fc for fc in arcpy.ListFeatureClasses("*21*","All") if not fc.startswith('V')]
+for fc in fcs:
+    fieldName = "cost3fix"
+    arcpy.AddField_management(fc,"cost3fix","FLOAT","", "", "", "cost3fix", "NULLABLE", "NON_REQUIRED", "") # this will be the final potential resources NEEDS CALCULATEFIELD MANAGEMENT AFTER SOIL LOSS RESTRICTIONS AND CARBON RESTRICTIONS
+    expression = "(float(!cost1!) + float(!cost2fix!))"
+    try:
+        arcpy.CalculateField_management(fc, fieldName, expression, "PYTHON_9.3")
+    except:
+        print fc
+        continue
+ 
+
+
+-------now costs codes for 221, 222, 223  APPLIED:
+
+221 ## costs for 211,212,213 cost1 = €/tDMdd
+
+import os
+import arcpy
+import itertools
+import csv
+
+folderPath = r"F:\bioraise\landcover\corine\corine_grid\agriculture_february"
+arcpy.env.workspace=folderPath
+arcpy.env.overwriteOutput = True 
+
+fcLst = arcpy.ListFeatureClasses("*221*","All")
+print fcLst
+
+for fc in fcLst:
+    fieldName = "cost1"
+    arcpy.AddField_management(fc,"cost1","FLOAT","", "", "", "cost1", "NULLABLE", "NON_REQUIRED", "") # this will be the final potential resources NEEDS CALCULATEFIELD MANAGEMENT AFTER SOIL LOSS RESTRICTIONS AND CARBON RESTRICTIONS
+    expression = "(32* float(!tDMdf1!))"
+    try:
+        arcpy.CalculateField_management(fc, fieldName, expression, "PYTHON_9.3")
+    except:
+        print fc
+        continue
+    
+import os
+import arcpy
+import itertools
+import csv
+
+folderPath = r"F:\bioraise\landcover\corine\corine_grid\agriculture_february"
+arcpy.env.workspace=folderPath
+arcpy.env.overwriteOutput = True 
+
+fcLst = arcpy.ListFeatureClasses("*221*","All")
+for fc in fcLst:
+    fieldName = "cost2"
+    arcpy.AddField_management(fc,"cost2","FLOAT","", "", "", "cost2", "NULLABLE", "NON_REQUIRED", "") # this will be the final potential resources NEEDS CALCULATEFIELD MANAGEMENT AFTER SOIL LOSS RESTRICTIONS AND CARBON RESTRICTIONS
+    expression = "(15* float(!tDMdf1!))"
+    try:
+        arcpy.CalculateField_management(fc, fieldName, expression, "PYTHON_9.3")
+    except:
+        print fc
+        continue
+
+
+## total cost: cost3
+import os
+import arcpy
+import itertools
+import csv
+
+folderPath = r"F:\bioraise\landcover\corine\corine_grid\agriculture_february"
+arcpy.env.workspace=folderPath
+arcpy.env.overwriteOutput = True 
+
+fcLst = arcpy.ListFeatureClasses("*221*","All")
+for fc in fcLst:
+    fieldName = "cost3"
+    arcpy.AddField_management(fc,"cost3","FLOAT","", "", "", "cost3", "NULLABLE", "NON_REQUIRED", "") # this will be the final potential resources NEEDS CALCULATEFIELD MANAGEMENT AFTER SOIL LOSS RESTRICTIONS AND CARBON RESTRICTIONS
+    expression = "(float(!cost1!) + float(!cost2!))"
+    try:
+        arcpy.CalculateField_management(fc, fieldName, expression, "PYTHON_9.3")
+    except:
+        print fc
+        continue
+##fix costs 221
+
+import os
+import arcpy
+import itertools
+import csv
+
+folderPath = r"F:\bioraise\landcover\corine\corine_grid\agriculture_february"
+arcpy.env.workspace=folderPath
+arcpy.env.overwriteOutput = True 
+
+fcs = arcpy.ListFeatureClasses("*221*","All") 
+for fc in fcs:
+    fieldName = "cost2fix"
+    arcpy.AddField_management(fc,"cost2fix","FLOAT","", "", "", "cost2fix", "NULLABLE", "NON_REQUIRED", "") # this will be the final potential resources NEEDS CALCULATEFIELD MANAGEMENT AFTER SOIL LOSS RESTRICTIONS AND CARBON RESTRICTIONS
+    expression = "CBALETDMDD(float(!tDMdf1!))"
+    codeblock = """def CBALETDMDD(valtDMdd):
+       if (valtDMdd == 0):
+           cost2fix = 0
+           return cost2fix
+       else: 
+           cost2fix = 15 
+           return cost2fix"""
+    try:
+        arcpy.CalculateField_management(fc, fieldName, expression, "PYTHON_9.3", codeblock)
+    except:
+        print fc
+        continue
+
+
+import os
+import arcpy
+import itertools
+import csv
+
+folderPath = r"F:\bioraise\landcover\corine\corine_grid\agriculture_february"
+arcpy.env.workspace=folderPath
+arcpy.env.overwriteOutput = True 
+
+fcs = arcpy.ListFeatureClasses("*221*","All") 
+for fc in fcs:
+    fieldName = "cost1fix"
+    arcpy.AddField_management(fc,"cost1fix","FLOAT","", "", "", "cost1fix", "NULLABLE", "NON_REQUIRED", "") # this will be the final potential resources NEEDS CALCULATEFIELD MANAGEMENT AFTER SOIL LOSS RESTRICTIONS AND CARBON RESTRICTIONS
+    expression = "CBALETDMDD(float(!tDMdf1!))"
+    codeblock = """def CBALETDMDD(valtDMdd):
+       if (valtDMdd == 0):
+           cost2fix = 0
+           return cost2fix
+       else: 
+           cost2fix = 32 
+           return cost2fix"""
+    try:
+        arcpy.CalculateField_management(fc, fieldName, expression, "PYTHON_9.3", codeblock)
+    except:
+        print fc
+        continue
+
+import os
+import arcpy
+import itertools
+import csv
+
+folderPath = r"F:\bioraise\landcover\corine\corine_grid\agriculture_february"
+arcpy.env.workspace=folderPath
+arcpy.env.overwriteOutput = True 
+
+fcs = arcpy.ListFeatureClasses("*221*","All") 
+for fc in fcs:
+    fieldName = "costtotfix"
+    arcpy.AddField_management(fc,"costtotfix","FLOAT","", "", "", "costtotfix", "NULLABLE", "NON_REQUIRED", "") # this will be the final potential resources NEEDS CALCULATEFIELD MANAGEMENT AFTER SOIL LOSS RESTRICTIONS AND CARBON RESTRICTIONS
+    expression = "CBALETDMDD(float(!tDMdf1!))"
+    codeblock = """def CBALETDMDD(valtDMdd):
+       if (valtDMdd == 0):
+           cost2fix = 0
+           return cost2fix
+       else: 
+           cost2fix = 47 
+           return cost2fix"""
+    try:
+        arcpy.CalculateField_management(fc, fieldName, expression, "PYTHON_9.3", codeblock)
+    except:
+        print fc
+        continue
+
+
+222
+
+import os
+import arcpy
+import itertools
+import csv
+
+folderPath = r"F:\bioraise\landcover\corine\corine_grid\agriculture_february"
+arcpy.env.workspace=folderPath
+arcpy.env.overwriteOutput = True 
+
+fcLst = arcpy.ListFeatureClasses("*222*","All")
+for fc in fcLst:
+    
+    fieldName = "cost1"
+    arcpy.AddField_management(fc,"cost1","FLOAT","", "", "", "cost1", "NULLABLE", "NON_REQUIRED", "") # this will be the final potential resources NEEDS CALCULATEFIELD MANAGEMENT AFTER SOIL LOSS RESTRICTIONS AND CARBON RESTRICTIONS
+    expression = "(37* float(!tDMdf1!))"
+    try:
+        arcpy.CalculateField_management(fc, fieldName, expression, "PYTHON_9.3")
+    except:
+        print fc
+        continue
+    
+import os
+import arcpy
+import itertools
+import csv
+
+folderPath = r"F:\bioraise\landcover\corine\corine_grid\agriculture_february"
+arcpy.env.workspace=folderPath
+arcpy.env.overwriteOutput = True 
+
+fcLst = arcpy.ListFeatureClasses("*222*","All")
+for fc in fcLst:
+    fieldName = "cost2"
+    arcpy.AddField_management(fc,"cost2","FLOAT","", "", "", "cost2", "NULLABLE", "NON_REQUIRED", "") # this will be the final potential resources NEEDS CALCULATEFIELD MANAGEMENT AFTER SOIL LOSS RESTRICTIONS AND CARBON RESTRICTIONS
+    expression = "(13* float(!tDMdf1!))"
+    try:
+        arcpy.CalculateField_management(fc, fieldName, expression, "PYTHON_9.3")
+    except:
+        print fc
+        continue
+
+
+## total cost: cost3
+import os
+import arcpy
+import itertools
+import csv
+
+folderPath = r"F:\bioraise\landcover\corine\corine_grid\agriculture_february"
+arcpy.env.workspace=folderPath
+arcpy.env.overwriteOutput = True 
+
+fcLst = arcpy.ListFeatureClasses("*222*","All")
+for fc in fcLst:
+    fieldName = "cost3"
+    arcpy.AddField_management(fc,"cost3","FLOAT","", "", "", "cost3", "NULLABLE", "NON_REQUIRED", "") # this will be the final potential resources NEEDS CALCULATEFIELD MANAGEMENT AFTER SOIL LOSS RESTRICTIONS AND CARBON RESTRICTIONS
+    expression = "(float(!cost1!) + float(!cost2!))"
+    try:
+        arcpy.CalculateField_management(fc, fieldName, expression, "PYTHON_9.3")
+    except:
+        print fc
+        continue
+
+##fix costs 222
+
+import os
+import arcpy
+import itertools
+import csv
+
+folderPath = r"F:\bioraise\landcover\corine\corine_grid\agriculture_february"
+arcpy.env.workspace=folderPath
+arcpy.env.overwriteOutput = True 
+
+fcs = arcpy.ListFeatureClasses("*222*","All") 
+for fc in fcs:
+    fieldName = "cost2fix"
+    arcpy.AddField_management(fc,"cost2fix","FLOAT","", "", "", "cost2fix", "NULLABLE", "NON_REQUIRED", "") # this will be the final potential resources NEEDS CALCULATEFIELD MANAGEMENT AFTER SOIL LOSS RESTRICTIONS AND CARBON RESTRICTIONS
+    expression = "CBALETDMDD(float(!tDMdf1!))"
+    codeblock = """def CBALETDMDD(valtDMdd):
+       if (valtDMdd == 0):
+           cost2fix = 0
+           return cost2fix
+       else: 
+           cost2fix = 13 
+           return cost2fix"""
+    try:
+        arcpy.CalculateField_management(fc, fieldName, expression, "PYTHON_9.3", codeblock)
+    except:
+        print fc
+        continue
+
+
+import os
+import arcpy
+import itertools
+import csv
+
+folderPath = r"F:\bioraise\landcover\corine\corine_grid\agriculture_february"
+arcpy.env.workspace=folderPath
+arcpy.env.overwriteOutput = True 
+
+fcs = arcpy.ListFeatureClasses("*222*","All") 
+for fc in fcs:
+    fieldName = "cost1fix"
+    arcpy.AddField_management(fc,"cost1fix","FLOAT","", "", "", "cost1fix", "NULLABLE", "NON_REQUIRED", "") # this will be the final potential resources NEEDS CALCULATEFIELD MANAGEMENT AFTER SOIL LOSS RESTRICTIONS AND CARBON RESTRICTIONS
+    expression = "CBALETDMDD(float(!tDMdf1!))"
+    codeblock = """def CBALETDMDD(valtDMdd):
+       if (valtDMdd == 0):
+           cost2fix = 0
+           return cost2fix
+       else: 
+           cost2fix = 37 
+           return cost2fix"""
+    try:
+        arcpy.CalculateField_management(fc, fieldName, expression, "PYTHON_9.3", codeblock)
+    except:
+        print fc
+        continue
+
+import os
+import arcpy
+import itertools
+import csv
+
+folderPath = r"F:\bioraise\landcover\corine\corine_grid\agriculture_february"
+arcpy.env.workspace=folderPath
+arcpy.env.overwriteOutput = True 
+
+fcs = arcpy.ListFeatureClasses("*222*","All") 
+for fc in fcs:
+    fieldName = "costtotfix"
+    arcpy.AddField_management(fc,"costtotfix","FLOAT","", "", "", "costtotfix", "NULLABLE", "NON_REQUIRED", "") # this will be the final potential resources NEEDS CALCULATEFIELD MANAGEMENT AFTER SOIL LOSS RESTRICTIONS AND CARBON RESTRICTIONS
+    expression = "CBALETDMDD(float(!tDMdf1!))"
+    codeblock = """def CBALETDMDD(valtDMdd):
+       if (valtDMdd == 0):
+           cost2fix = 0
+           return cost2fix
+       else: 
+           cost2fix = 50 
+           return cost2fix"""
+    try:
+        arcpy.CalculateField_management(fc, fieldName, expression, "PYTHON_9.3", codeblock)
+    except:
+        print fc
+        continue
+
+
+
+
+223
+import os
+import arcpy
+import itertools
+import csv
+
+folderPath = r"F:\bioraise\landcover\corine\corine_grid\agriculture_february"
+arcpy.env.workspace=folderPath
+arcpy.env.overwriteOutput = True 
+
+fcLst = arcpy.ListFeatureClasses("*223*","All")
+for fc in fcLst:
+    fieldName = "cost1"
+    arcpy.AddField_management(fc,"cost1","FLOAT","", "", "", "cost1", "NULLABLE", "NON_REQUIRED", "") # this will be the final potential resources NEEDS CALCULATEFIELD MANAGEMENT AFTER SOIL LOSS RESTRICTIONS AND CARBON RESTRICTIONS
+    expression = "(25* float(!tDMdf1!))"
+    try:
+        arcpy.CalculateField_management(fc, fieldName, expression, "PYTHON_9.3")
+    except:
+        print fc
+        continue
+    
+import os
+import arcpy
+import itertools
+import csv
+
+folderPath = r"F:\bioraise\landcover\corine\corine_grid\agriculture_february"
+arcpy.env.workspace=folderPath
+arcpy.env.overwriteOutput = True 
+
+fcLst = arcpy.ListFeatureClasses("*223*","All")
+for fc in fcLst:
+    fieldName = "cost2"
+    arcpy.AddField_management(fc,"cost2","FLOAT","", "", "", "cost2", "NULLABLE", "NON_REQUIRED", "") # this will be the final potential resources NEEDS CALCULATEFIELD MANAGEMENT AFTER SOIL LOSS RESTRICTIONS AND CARBON RESTRICTIONS
+    expression = "(13* float(!tDMdf1!))"
+    try:
+        arcpy.CalculateField_management(fc, fieldName, expression, "PYTHON_9.3")
+    except:
+        print fc
+        continue
+
+
+## total cost: cost3
+import os
+import arcpy
+import itertools
+import csv
+
+folderPath = r"F:\bioraise\landcover\corine\corine_grid\agriculture_february"
+arcpy.env.workspace=folderPath
+arcpy.env.overwriteOutput = True 
+
+fcLst = arcpy.ListFeatureClasses("*223*","All")
+for fc in fcLst:
+    fieldName = "cost3"
+    arcpy.AddField_management(fc,"cost3","FLOAT","", "", "", "cost3", "NULLABLE", "NON_REQUIRED", "") # this will be the final potential resources NEEDS CALCULATEFIELD MANAGEMENT AFTER SOIL LOSS RESTRICTIONS AND CARBON RESTRICTIONS
+    expression = "(float(!cost1!) + float(!cost2!))"
+    try:
+        arcpy.CalculateField_management(fc, fieldName, expression, "PYTHON_9.3")
+    except:
+        print fc
+        continue
+
+#costs fix 223
+import os
+import arcpy
+import itertools
+import csv
+
+folderPath = r"F:\bioraise\landcover\corine\corine_grid\agriculture_february"
+arcpy.env.workspace=folderPath
+arcpy.env.overwriteOutput = True 
+
+fcs = arcpy.ListFeatureClasses("*223*","All") 
+for fc in fcs:
+    fieldName = "cost2fix"
+    arcpy.AddField_management(fc,"cost2fix","FLOAT","", "", "", "cost2fix", "NULLABLE", "NON_REQUIRED", "") # this will be the final potential resources NEEDS CALCULATEFIELD MANAGEMENT AFTER SOIL LOSS RESTRICTIONS AND CARBON RESTRICTIONS
+    expression = "CBALETDMDD(float(!tDMdf1!))"
+    codeblock = """def CBALETDMDD(valtDMdd):
+       if (valtDMdd == 0):
+           cost2fix = 0
+           return cost2fix
+       else: 
+           cost2fix = 13 
+           return cost2fix"""
+    try:
+        arcpy.CalculateField_management(fc, fieldName, expression, "PYTHON_9.3", codeblock)
+    except:
+        print fc
+        continue
+
+
+import os
+import arcpy
+import itertools
+import csv
+
+folderPath = r"F:\bioraise\landcover\corine\corine_grid\agriculture_february"
+arcpy.env.workspace=folderPath
+arcpy.env.overwriteOutput = True 
+
+fcs = arcpy.ListFeatureClasses("*223*","All") 
+for fc in fcs:
+    fieldName = "cost1fix"
+    arcpy.AddField_management(fc,"cost1fix","FLOAT","", "", "", "cost1fix", "NULLABLE", "NON_REQUIRED", "") # this will be the final potential resources NEEDS CALCULATEFIELD MANAGEMENT AFTER SOIL LOSS RESTRICTIONS AND CARBON RESTRICTIONS
+    expression = "CBALETDMDD(float(!tDMdf1!))"
+    codeblock = """def CBALETDMDD(valtDMdd):
+       if (valtDMdd == 0):
+           cost2fix = 0
+           return cost2fix
+       else: 
+           cost2fix = 25 
+           return cost2fix"""
+    try:
+        arcpy.CalculateField_management(fc, fieldName, expression, "PYTHON_9.3", codeblock)
+    except:
+        print fc
+        continue
+
+import os
+import arcpy
+import itertools
+import csv
+
+folderPath = r"F:\bioraise\landcover\corine\corine_grid\agriculture_february"
+arcpy.env.workspace=folderPath
+arcpy.env.overwriteOutput = True 
+
+fcs = arcpy.ListFeatureClasses("*223*","All") 
+for fc in fcs:
+    fieldName = "costtotfix"
+    arcpy.AddField_management(fc,"costtotfix","FLOAT","", "", "", "costtotfix", "NULLABLE", "NON_REQUIRED", "") # this will be the final potential resources NEEDS CALCULATEFIELD MANAGEMENT AFTER SOIL LOSS RESTRICTIONS AND CARBON RESTRICTIONS
+    expression = "CBALETDMDD(float(!tDMdf1!))"
+    codeblock = """def CBALETDMDD(valtDMdd):
+       if (valtDMdd == 0):
+           cost2fix = 0
+           return cost2fix
+       else: 
+           cost2fix = 38 
+           return cost2fix"""
+    try:
+        arcpy.CalculateField_management(fc, fieldName, expression, "PYTHON_9.3", codeblock)
+    except:
+        print fc
+        continue
+
+### 241
+
+import os
+import arcpy
+import itertools
+import csv
+
+folderPath = r"F:\bioraise\landcover\corine\corine_grid\agriculture_february"
+arcpy.env.workspace=folderPath
+arcpy.env.overwriteOutput = True 
+
+fcs = arcpy.ListFeatureClasses("*223*","All") 
+for fc in fcs:
+    fieldName = "cost2fix"
+    arcpy.AddField_management(fc,"cost2fix","FLOAT","", "", "", "cost2fix", "NULLABLE", "NON_REQUIRED", "") # this will be the final potential resources NEEDS CALCULATEFIELD MANAGEMENT AFTER SOIL LOSS RESTRICTIONS AND CARBON RESTRICTIONS
+    expression = "CBALETDMDD(float(!tDMd!))"
+    codeblock = """def CBALETDMDD(valtDMdd):
+       if (valtDMdd == 0):
+           cost2fix = 0
+           return cost2fix
+       else: 
+           cost2fix = 13.66666667 
+           return cost2fix"""
+    try:
+        arcpy.CalculateField_management(fc, fieldName, expression, "PYTHON_9.3", codeblock)
+    except:
+        print fc
+        continue
+
+
+import os
+import arcpy
+import itertools
+import csv
+
+folderPath = r"F:\bioraise\landcover\corine\corine_grid\agriculture_february"
+arcpy.env.workspace=folderPath
+arcpy.env.overwriteOutput = True 
+
+fcs = arcpy.ListFeatureClasses("*223*","All") 
+for fc in fcs:
+    fieldName = "cost1fix"
+    arcpy.AddField_management(fc,"cost1fix","FLOAT","", "", "", "cost1fix", "NULLABLE", "NON_REQUIRED", "") # this will be the final potential resources NEEDS CALCULATEFIELD MANAGEMENT AFTER SOIL LOSS RESTRICTIONS AND CARBON RESTRICTIONS
+    expression = "CBALETDMDD(float(!tDMd!))"
+    codeblock = """def CBALETDMDD(valtDMdd):
+       if (valtDMdd == 0):
+           cost2fix = 0
+           return cost2fix
+       else: 
+           cost2fix = 31.33333333 
+           return cost2fix"""
+    try:
+        arcpy.CalculateField_management(fc, fieldName, expression, "PYTHON_9.3", codeblock)
+    except:
+        print fc
+        continue
+
+import os
+import arcpy
+import itertools
+import csv
+
+folderPath = r"F:\bioraise\landcover\corine\corine_grid\agriculture_february"
+arcpy.env.workspace=folderPath
+arcpy.env.overwriteOutput = True 
+
+fcs = arcpy.ListFeatureClasses("*Mix*","All") 
+for fc in fcs:
+    fieldName = "costtotfix"
+    arcpy.AddField_management(fc,"costtotfix","FLOAT","", "", "", "costtotfix", "NULLABLE", "NON_REQUIRED", "") # this will be the final potential resources NEEDS CALCULATEFIELD MANAGEMENT AFTER SOIL LOSS RESTRICTIONS AND CARBON RESTRICTIONS
+    expression = "CBALETDMDD(float(!tDMd!))"
+    codeblock = """def CBALETDMDD(valtDMdd):
+       if (valtDMdd == 0):
+           cost2fix = 0
+           return cost2fix
+       else: 
+           cost2fix = 45 
+           return cost2fix"""
+    try:
+        arcpy.CalculateField_management(fc, fieldName, expression, "PYTHON_9.3", codeblock)
+    except:
+        print fc
+        continue
+
+
+cost1fix
+31.33333333
+
+cost2fix
+13.66666667
+
+costtotfix
+45
+
+import os
+import arcpy
+import itertools
+import csv
+
+folderPath = r"F:\bioraise\landcover\corine\corine_grid\agriculture_february"
+arcpy.env.workspace=folderPath
+arcpy.env.overwriteOutput = True 
+
+fcLst = arcpy.ListFeatureClasses("*Mix*","All")
+for fc in fcLst:
+    fieldName = "cost1"
+    arcpy.AddField_management(fc,"cost1","FLOAT","", "", "", "cost1", "NULLABLE", "NON_REQUIRED", "") # this will be the final potential resources NEEDS CALCULATEFIELD MANAGEMENT AFTER SOIL LOSS RESTRICTIONS AND CARBON RESTRICTIONS
+    expression = "(31.33333333* float(!tDMd!))"
+    try:
+        arcpy.CalculateField_management(fc, fieldName, expression, "PYTHON_9.3")
+    except:
+        print fc
+        continue
+    
+import os
+import arcpy
+import itertools
+import csv
+
+folderPath = r"F:\bioraise\landcover\corine\corine_grid\agriculture_february"
+arcpy.env.workspace=folderPath
+arcpy.env.overwriteOutput = True 
+
+fcLst = arcpy.ListFeatureClasses("*Mix*","All")
+for fc in fcLst:
+    fieldName = "cost2"
+    arcpy.AddField_management(fc,"cost2","FLOAT","", "", "", "cost2", "NULLABLE", "NON_REQUIRED", "") # this will be the final potential resources NEEDS CALCULATEFIELD MANAGEMENT AFTER SOIL LOSS RESTRICTIONS AND CARBON RESTRICTIONS
+    expression = "(13.66666667* float(!tDMd!))"
+    try:
+        arcpy.CalculateField_management(fc, fieldName, expression, "PYTHON_9.3")
+    except:
+        print fc
+        continue
+
+
+## total cost: cost3
+import os
+import arcpy
+import itertools
+import csv
+
+folderPath = r"F:\bioraise\landcover\corine\corine_grid\agriculture_february"
+arcpy.env.workspace=folderPath
+arcpy.env.overwriteOutput = True 
+
+fcLst = arcpy.ListFeatureClasses("*Mix*","All")
+for fc in fcLst:
+    fieldName = "cost3"
+    arcpy.AddField_management(fc,"cost3","FLOAT","", "", "", "cost3", "NULLABLE", "NON_REQUIRED", "") # this will be the final potential resources NEEDS CALCULATEFIELD MANAGEMENT AFTER SOIL LOSS RESTRICTIONS AND CARBON RESTRICTIONS
+    expression = "(float(!cost1!) + float(!cost2!))"
+    try:
+        arcpy.CalculateField_management(fc, fieldName, expression, "PYTHON_9.3")
+    except:
+        print fc
+        continue
+
+##new column for ha
+import os
+import arcpy
+import itertools
+import csv
+
+folderPath = r"F:\bioraise\landcover\corine\corine_grid\agriculture_february"
+arcpy.env.workspace=folderPath
+arcpy.env.overwriteOutput = True 
+
+fcs = [fc for fc in arcpy.ListFeatureClasses() if not fc.startswith('Mix')]
+for fc in fcs:
+    fieldName = "HAf"
+    arcpy.AddField_management(fc,"HAf","FLOAT","", "", "", "HAf", "NULLABLE", "NON_REQUIRED", "") # this will be the final potential resources NEEDS CALCULATEFIELD MANAGEMENT AFTER SOIL LOSS RESTRICTIONS AND CARBON RESTRICTIONS
+    expression = "CBALETDMDD(float(!ha!), float(!distEUha!),float(!sumha!),float(!sumEUha!))"
+    codeblock = """def CBALETDMDD(valCORha, valEUha, valsumCOR, valsumEU):
+       if (valsumCOR < valsumEU):
+           Haf = valCORha
+           return Haf
+       else: 
+           Haf = valEUha 
+           return Haf"""
+    try:
+        arcpy.CalculateField_management(fc, fieldName, expression, "PYTHON_9.3", codeblock)
+    except:
+        print fc
+        continue
+ 
+if sumHA > sumEUha:
+ HA = !ha!
+else:
+ HA = !distEUha! 
+
+
+### drop fields
+
+import os
+import arcpy
+arcpy.env.workspace = r"F:\bioraise\landcover\corine\corine_grid\agriculture_february\clean"
+arcpy.env.overwriteOutput = True 
+fcList = arcpy.ListFeatureClasses()
+for fc in fcList:
+    outputname = fc.split(".shp")[0]
+    #print outputname
+    output = outputname +"_drop"
+    print output
+    dropFields = ["tDM","tDMp", "tDMpp","tDMdd","tDMpp1","sumEUha","sumha","EUHA","TDMHA_1","PCT_1","percentha","tDMpf","tDMdf"]
+    arcpy.CopyFeatures_management(fc, output)
+    arcpy.DeleteField_management(output, dropFields)
+
+
+import os
+import arcpy
+arcpy.env.workspace = r"F:\bioraise\landcover\corine\corine_grid\agriculture_february\clean"
+arcpy.env.overwriteOutput = True 
+fcList = arcpy.ListFeatureClasses("*Mix*","All")
+for fc in fcList:
+    outputname = fc.split(".shp")[0]
+    #print outputname
+    output = outputname +"_drop"
+    print output
+    dropFields = ["EUSTATha", "tDMpp1","sumEUha","sumha","distEUha","percentha","tDMpp","tDMdd"]
+    arcpy.CopyFeatures_management(fc, output)
+    arcpy.DeleteField_management(output, dropFields)
+
+
+---### CHECK CORINE/EUROSTAT, TDM FCS EXISTING
+### SUM HAF AND TDMP AND TDM
+
+import os
+import arcpy
+import itertools
+import csv
+import numpy
+folderPath = r"F:\bioraise\landcover\corine\corine_grid\agriculture_february\clean"
+arcpy.env.workspace=folderPath
+arcpy.env.overwriteOutput = True 
+
+fcs = [fc for fc in arcpy.ListFeatureClasses() if not fc.startswith('Mix')]
+for fc in fcs:
+    fieldName = "tDMpNUT"
+    fieldName1 = "tDMdNUT"
+    fieldName2 = "hafNUT"
+    arcpy.AddField_management(fc,fieldName,"FLOAT","", "", "", fieldName, "NULLABLE", "NON_REQUIRED", "")  
+    arcpy.AddField_management(fc,fieldName1,"FLOAT","", "", "", fieldName1, "NULLABLE", "NON_REQUIRED", "")
+    arcpy.AddField_management(fc,fieldName2,"FLOAT","", "", "", fieldName2, "NULLABLE", "NON_REQUIRED", "")
+    expression = "miFunc(!Nut2!, !tDMpf1!, !tDMdf1!, !HAf!)"
+    codeblock = """def miFunc(miNut2, mipot, midisp, misup):
+        sumtDMpNUT = numpy.sum([r[0] for r in arcpy.da.SearchCursor(fc,["tDMpf1", "Nut2"], where_clause="Nut2 like '" + miNut2 + "'")])   
+        return sumtDMpNUT"""
+    arcpy.CalculateField_management(fc, fieldName, expression, "PYTHON_9.3", codeblock)
+
+import os
+import arcpy
+import itertools
+import csv
+import numpy
+folderPath = r"F:\bioraise\landcover\corine\corine_grid\agriculture_february\clean"
+arcpy.env.workspace=folderPath
+arcpy.env.overwriteOutput = True 
+
+fcLst = arcpy.ListFeatureClasses()
+
+for fc in fcLst:
+    fieldName1 = "tDMdNUT"
+    fieldName2 = "hafNUT"
+    arcpy.AddField_management(fc,fieldName1,"FLOAT","", "", "", fieldName1, "NULLABLE", "NON_REQUIRED", "")
+    arcpy.AddField_management(fc,fieldName2,"FLOAT","", "", "", fieldName2, "NULLABLE", "NON_REQUIRED", "")
+    expression = "miFunc(!Nut2!, !tDMpf1!, !tDMdf1!, !HAf!)"
+    codeblock = """def miFunc(miNut2, mipot, midisp, misup):  
+        sumtDMdNUT = numpy.sum([r[0] for r in arcpy.da.SearchCursor(fc,["tDMdf1", "Nut2"], where_clause="Nut2 like '" + miNut2 + "'")])
+        return sumtDMdNUT"""
+    try:
+        arcpy.CalculateField_management(fc, "tDMdNUT", expression, "PYTHON_9.3", codeblock)
+    except:
+        print fc
+        continue
+
+---#################################RUNNING THIS FOR RAINFED
+import os
+import arcpy
+import itertools
+import csv
+import numpy
+folderPath = r"F:\bioraise\landcover\corine\corine_grid\agriculture_february\clean"
+arcpy.env.workspace=folderPath
+arcpy.env.overwriteOutput = True 
+
+fcLst = arcpy.ListFeatureClasses()
+
+for fc in fcLst:
+    fieldName2 = "hafNUT"
+    expression = "miFunc(!Nut2!, !HAf!)"
+    codeblock = """def miFunc(miNut2, misup):  
+        sumhafNUT = numpy.sum([r[0] for r in arcpy.da.SearchCursor(fc,["HAf", "Nut2"], where_clause="Nut2 like '" + miNut2 + "'")])
+        return sumhafNUT"""
+    try:
+        arcpy.CalculateField_management(fc, "hafNUT", expression, "PYTHON_9.3", codeblock)
+    except:
+        print fc
+        continue
+
+
+##FOR 241 MIX, VINEYARD AND RICE
+import os
+import arcpy
+import itertools
+import csv
+import numpy
+folderPath = r"F:\bioraise\landcover\corine\corine_grid\agriculture_february\clean"
+arcpy.env.workspace=folderPath
+arcpy.env.overwriteOutput = True 
+
+fcLst = arcpy.ListFeatureClasses("*Vineyard*","All")
+
+for fc in fcLst:
+    fieldName2 = "hafNUT"
+    expression = "miFunc(!Nut2!, !HAf!)"
+    codeblock = """def miFunc(miNut2, misup):  
+        sumhafNUT = numpy.sum([r[0] for r in arcpy.da.SearchCursor(fc,["HAf", "Nut2"], where_clause="Nut2 like '" + miNut2 + "'")])
+        return sumhafNUT"""
+    try:
+        arcpy.CalculateField_management(fc, "hafNUT", expression, "PYTHON_9.3", codeblock)
+    except:
+        print fc
+        continue
+
+import os
+import arcpy
+import itertools
+import csv
+import numpy
+folderPath = r"F:\bioraise\landcover\corine\corine_grid\agriculture_february\clean"
+arcpy.env.workspace=folderPath
+arcpy.env.overwriteOutput = True 
+
+fcLst = arcpy.ListFeatureClasses("*Rice*","All")
+
+for fc in fcLst:
+    fieldName2 = "hafNUT"
+    expression = "miFunc(!Nut2!, !HAf!)"
+    arcpy.AddField_management(fc,fieldName2,"FLOAT","", "", "", fieldName2, "NULLABLE", "NON_REQUIRED", "")
+    codeblock = """def miFunc(miNut2, misup):  
+        sumhafNUT = numpy.sum([r[0] for r in arcpy.da.SearchCursor(fc,["HAf", "Nut2"], where_clause="Nut2 like '" + miNut2 + "'")])
+        return sumhafNUT"""
+    try:
+        arcpy.CalculateField_management(fc, "hafNUT", expression, "PYTHON_9.3", codeblock)
+    except:
+        print fc
+        continue
+    
+import os
+import arcpy
+import itertools
+import csv
+import numpy
+folderPath = r"F:\bioraise\landcover\corine\corine_grid\agriculture_february\clean"
+arcpy.env.workspace=folderPath
+arcpy.env.overwriteOutput = True 
+
+fcLst = arcpy.ListFeatureClasses("*Rice*","All")
+
+for fc in fcLst:
+    fieldName1 = "tDMdNUT"
+    arcpy.AddField_management(fc,fieldName1,"FLOAT","", "", "", fieldName1, "NULLABLE", "NON_REQUIRED", "")
+    expression = "miFunc(!Nut2!, !tDMpf1!, !tDMdf1!, !HAf!)"
+    codeblock = """def miFunc(miNut2, mipot, midisp, misup):  
+        sumtDMdNUT = numpy.sum([r[0] for r in arcpy.da.SearchCursor(fc,["tDMdf1", "Nut2"], where_clause="Nut2 like '" + miNut2 + "'")])
+        return sumtDMdNUT"""
+    try:
+        arcpy.CalculateField_management(fc, "tDMdNUT", expression, "PYTHON_9.3", codeblock)
+    except:
+        print fc
+        continue
+
+import os
+import arcpy
+import itertools
+import csv
+import numpy
+folderPath = r"F:\bioraise\landcover\corine\corine_grid\agriculture_february\clean"
+arcpy.env.workspace=folderPath
+arcpy.env.overwriteOutput = True 
+
+fcLst = arcpy.ListFeatureClasses("*Rice*","All")
+
+for fc in fcLst:
+    fieldName1 = "tDMpNUT"
+    arcpy.AddField_management(fc,fieldName1,"FLOAT","", "", "", fieldName1, "NULLABLE", "NON_REQUIRED", "")
+    expression = "miFunc(!Nut2!, !tDMpf1!, !tDMdf1!, !HAf!)"
+    codeblock = """def miFunc(miNut2, mipot, midisp, misup):  
+        sumtDMpNUT = numpy.sum([r[0] for r in arcpy.da.SearchCursor(fc,["tDMpf1", "Nut2"], where_clause="Nut2 like '" + miNut2 + "'")])
+        return sumtDMpNUT"""
+    try:
+        arcpy.CalculateField_management(fc, "tDMpNUT", expression, "PYTHON_9.3", codeblock)
+    except:
+        print fc
+        continue
+
+import os
+import arcpy
+import itertools
+import csv
+import numpy
+folderPath = r"F:\bioraise\landcover\corine\corine_grid\agriculture_february\clean"
+arcpy.env.workspace=folderPath
+arcpy.env.overwriteOutput = True 
+
+fcs = arcpy.ListFeatureClasses("*Mix*","All") 
+for fc in fcs:
+    fieldName = "tDMpNUT"
+    fieldName1 = "tDMdNUT"
+    fieldName2 = "hafNUT"
+    arcpy.AddField_management(fc,fieldName,"FLOAT","", "", "", fieldName, "NULLABLE", "NON_REQUIRED", "")  
+    arcpy.AddField_management(fc,fieldName1,"FLOAT","", "", "", fieldName1, "NULLABLE", "NON_REQUIRED", "")
+    arcpy.AddField_management(fc,fieldName2,"FLOAT","", "", "", fieldName2, "NULLABLE", "NON_REQUIRED", "")
+    expression = "miFunc(!Nut2!, !tDMp!, !tDMd!, !ha!)"
+    codeblock = """def miFunc(miNut2, mipot, midisp, misup):
+        sumtDMpNUT = numpy.sum([r[0] for r in arcpy.da.SearchCursor(fc,["tDMp", "Nut2"], where_clause="Nut2 like '" + miNut2 + "'")])   
+        return sumtDMpNUT"""
+    arcpy.CalculateField_management(fc, fieldName, expression, "PYTHON_9.3", codeblock)
+
+import os
+import arcpy
+import itertools
+import csv
+import numpy
+folderPath = r"F:\bioraise\landcover\corine\corine_grid\agriculture_february\clean"
+arcpy.env.workspace=folderPath
+arcpy.env.overwriteOutput = True 
+
+fcs = arcpy.ListFeatureClasses("*Mix*","All")
+for fc in fcs:
+    fieldName1 = "tDMdNUT"
+    expression = "miFunc(!Nut2!, !tDMp!, !tDMd!, !ha!)"
+    codeblock = """def miFunc(miNut2, mipot, midisp, misup):  
+        sumtDMdNUT = numpy.sum([r[0] for r in arcpy.da.SearchCursor(fc,["tDMd", "Nut2"], where_clause="Nut2 like '" + miNut2 + "'")])
+        return sumtDMdNUT"""
+    arcpy.CalculateField_management(fc, "tDMdNUT", expression, "PYTHON_9.3", codeblock)
+
+import os
+import arcpy
+import itertools
+import csv
+import numpy
+folderPath = r"F:\bioraise\landcover\corine\corine_grid\agriculture_february\clean"
+arcpy.env.workspace=folderPath
+arcpy.env.overwriteOutput = True 
+
+fcs = arcpy.ListFeatureClasses("*Mix*","All")
+for fc in fcs:
+    fieldName2 = "hafNUT"
+    expression = "miFunc(!Nut2!, !tDMp!, !tDMd!, !ha!)"
+    codeblock = """def miFunc(miNut2, mipot, midisp, misup):  
+        sumhafNUT = numpy.sum([r[0] for r in arcpy.da.SearchCursor(fc,["ha", "Nut2"], where_clause="Nut2 like '" + miNut2 + "'")])
+        return sumhafNUT"""
+    arcpy.CalculateField_management(fc, "hafNUT", expression, "PYTHON_9.3", codeblock)
+
+
+#### code compare corine/eurostat in all but 241   WORKKKKSSSSS VIIIIIPPPPPP
+import arcpy
+import os
+import itertools
+import csv
+import numpy
+folderPath = r"F:\bioraise\landcover\corine\corine_grid\agriculture_february\clean"
+arcpy.env.workspace = folderPath
+
+nut_temp=""
+for root,dirs,files in os.walk(folderPath):
+    for file in [f for f in files if f.lower().endswith("drop.shp")]:
+        nut_temp=""
+        #print(os.path.join(root, file.split(".shp")[0]))
+        
+        outname = file.split(".shp")[0] +"_stats.csv" 
+        fullPath = os.path.join(folderPath, outname)
+        csvLocation = fullPath
+        with open(csvLocation,'wb') as openCSV:
+            a = csv.writer(openCSV)
+            message = [['fc','ha','pot','available']] # only text message as header
+            a.writerows(message)
+            try:
+                fields = ["NUTS_ID", "hafNUT", "tDMpNUT", "tDMdNUT"]
+                with arcpy.da.SearchCursor(file, fields) as cursor:
+                    for row in cursor:
+                        if row[0]!=nut_temp:
+                            message = [[row[0],row[1],row[2],row[3]]] # only text message as header
+                            a.writerows(message)
+                        nut_temp=row[0]
+            except:
+                print file
+                continue
+
+
+import arcpy
+import os
+import itertools
+import csv
+import numpy
+folderPath = r"F:\bioraise\landcover\corine\corine_grid\agriculture_february\clean"
+arcpy.env.workspace = folderPath
+
+nut_temp=""
+for root,dirs,files in os.walk(folderPath):
+    for file in [f for f in files if f.lower().endswith("drop.shp")]:
+        nut_temp=""
+        #print(os.path.join(root, file.split(".shp")[0]))
+        
+        outname = file.split(".shp")[0] +"_stats.csv" 
+        fullPath = os.path.join(folderPath, outname)
+        csvLocation = fullPath
+        with open(csvLocation,'wb') as openCSV:
+            a = csv.writer(openCSV)
+            message = [['fc','ha','pot','available']] # only text message as header
+            a.writerows(message)
+            try:
+                fields = ["Nut2", "hafNUT", "tDMpNUT", "tDMdNUT"]
+                with arcpy.da.SearchCursor(file, fields) as cursor:
+                    for row in cursor:
+                        if row[0]!=nut_temp:
+                            message = [[row[0],row[1],row[2],row[3]]] # only text message as header
+                            a.writerows(message)
+                        nut_temp=row[0]
+            except:
+                print file
+                continue
+            
+------------------------------------------------------------------
+test for rice...
+
+import os
+import arcpy
+import itertools
+import csv
+import numpy
+folderPath = r"F:\bioraise\landcover\corine\corine_grid\agriculture_february\clean"
+arcpy.env.workspace=folderPath
+arcpy.env.overwriteOutput = True 
+
+fcLst = arcpy.ListFeatureClasses("*Rice*","All")
+
+for fc in fcLst:
+    expression = "miFunc(!Nut2!, !tDMpf1!, !tDMdf1!, !HAf!)"
+    codeblock = """def miFunc(miNut2, mipot, midisp, misup):  
+        sumtDMpNUT = numpy.sum([r[0] for r in arcpy.da.SearchCursor(fc,["tDMpf1", "Nut2"], where_clause="Nut2 like '" + miNut2 + "'")])
+        return sumtDMpNUT"""
+    try:
+        arcpy.CalculateField_management(fc, "tDMpNUT", expression, "PYTHON_9.3", codeblock)
+        print sumtDMpNUT
+    except: 
+        print fc
+        continue
+
+        fcname = fc.split(".shp")[0]
+        outname = fcname +"_stats.csv" 
+        fullPath = os.path.join(folderPath, outname)
+        csvLocation = fullPath
+        with open(csvLocation,'wb') as openCSV:
+            a = csv.writer(openCSV)
+            message = [['fc','ha','pot','available']] # only text message as header
+            a.writerows(message)
+            fields = ["Nut2","ha","tDMpf1","tDMdf1"]
+            for field in fields:
+                message1 = [[Nut2,sump]]
+                a.writerows(message1)
+        print fc + "_done"
+    except:
+        print fc
+        continue
+
+import os
+import arcpy
+import itertools
+import csv
+import numpy
+folderPath = r"F:\bioraise\landcover\corine\corine_grid\agriculture_february\clean"
+arcpy.env.workspace=folderPath
+arcpy.env.overwriteOutput = True 
+
+fcLst = arcpy.ListFeatureClasses("*Rice*","All")
+
+for fc in fcLst:
+    expression = "miFunc(!Nut2!, !tDMpf1!, !tDMdf1!, !HAf!)"
+    codeblock = """def miFunc(miNut2, mipot, midisp, misup):  
+        sumtDMpNUT = numpy.sum([r[0] for r in arcpy.da.SearchCursor(fc,["tDMpf1", "Nut2"], where_clause="Nut2 like '" + miNut2 + "'")])
+        sump = sumtDMpNUT.astype(float)
+        return sump"""
+    try:
+        arcpy.CalculateField_management(fc, "tDMpNUT", expression, "PYTHON_9.3", codeblock)
+        print sump
+        print tDMpNUT
+        arcpy.CalculateField_management(fc, "hafNUT", expression1, "PYTHON_9.3", codeblock1)
+        arcpy.CalculateField_management(fc, "tDMdNUT", expression2, "PYTHON_9.3", codeblock2)
+        fcname = fc.split(".shp")[0]
+        outname = fcname +"_stats.csv" 
+        fullPath = os.path.join(folderPath, outname)
+        csvLocation = fullPath
+        with open(csvLocation,'wb') as openCSV:
+            a = csv.writer(openCSV)
+            message = [['fc','ha','pot','available']] # only text message as header
+            a.writerows(message)
+            fields = ["Nut2","ha","tDMpf1","tDMdf1"]
+            for field in fields:
+                message1 = [[Nut2,sumha, sump, sumd]]
+                a.writerows(message1)
+        print fc + "_done"
+    except:
+        print fc
+        continue
+
+
+
+
+---
+
+import os
+import arcpy
+import itertools
+import csv
+import numpy
+folderPath = r"F:\bioraise\landcover\corine\corine_grid\agriculture_february\clean"
+arcpy.env.workspace=folderPath
+arcpy.env.overwriteOutput = True 
+
+fcLst = arcpy.ListFeatureClasses("*Rice*","All")
+
+for fc in fcLst:
+    expression = "miFunc(!Nut2!, !tDMpf1!, !tDMdf1!, !HAf!)"
+    codeblock = """def miFunc(miNut2, mipot, midisp, misup):  
+        sumtDMpNUT = numpy.sum([r[0] for r in arcpy.da.SearchCursor(fc,["tDMpf1", "Nut2"], where_clause="Nut2 like '" + miNut2 + "'")])
+        sump = sumtDMpNUT.astype(float)
+        return sump""
+    expression1 = "miFunc(!Nut2!, !tDMpf1!, !tDMdf1!, !ha!)"
+    codeblock1 = """def miFunc(miNut2, mipot, midisp, misup):  
+        sumhafNUT = numpy.sum([r[0] for r in arcpy.da.SearchCursor(fc,["ha", "Nut2"], where_clause="Nut2 like '" + miNut2 + "'")])
+        sumha = sumhafNUT.astype(float)
+        return sumha"""
+    
+    expression2 = "miFunc(!Nut2!, !tDMpf1!, !tDMdf1!, !HAf!)"
+    codeblock2 = """def miFunc(miNut2, mipot, midisp, misup):  
+        sumtDMdNUT = numpy.sum([r[0] for r in arcpy.da.SearchCursor(fc,["tDMdf1", "Nut2"], where_clause="Nut2 like '" + miNut2 + "'")])
+        sumd = sumtDMdNUT.astype(float)
+        return sumd"""
+    try:
+        arcpy.CalculateField_management(fc, "tDMpNUT", expression, "PYTHON_9.3", codeblock)
+        print sump
+        print tDMpNUT
+        arcpy.CalculateField_management(fc, "hafNUT", expression1, "PYTHON_9.3", codeblock1)
+        arcpy.CalculateField_management(fc, "tDMdNUT", expression2, "PYTHON_9.3", codeblock2)
+        fcname = fc.split(".shp")[0]
+        outname = fcname +"_stats.csv" 
+        fullPath = os.path.join(folderPath, outname)
+        csvLocation = fullPath
+        with open(csvLocation,'wb') as openCSV:
+            a = csv.writer(openCSV)
+            message = [['fc','ha','pot','available']] # only text message as header
+            a.writerows(message)
+            fields = ["Nut2","ha","tDMpf1","tDMdf1"]
+            for field in fields:
+                message1 = [[Nut2,sumha, sump, sumd]]
+                a.writerows(message1)
+        print fc + "_done"
+    except:
+        print fc
+        continue
+
+
+List = [] 
+        fcList = arcpy.ListFeatureClasses()
+        for fc in fcList:
+            List.append(fc)   
+            field = arcpy.da.TableToNumPyArray (fc, "ha", skip_nulls=True)
+            sum = field["ha"].sum()
+            sum_ct = sum.astype(float)
+            #print sum_ct # Corine hectares
+            field = arcpy.da.TableToNumPyArray (fc, "EUSTATha", skip_nulls=True)
+            sumEU = field["EUSTATha"].sum()
+            #print sumEU # Eurostat hectares
+            sumEU_ct = sumEU.astype(float)
+            #if sumEU_ct is not None:
+            if sum_ct < sumEU_ct: 
+                List_oops = []
+                List_oops.append(fc) # para cada uno lo repite
+                print List_oops
+                for fc in List_oops:
+                    csvLocation = outname 
+                    outname = fc +"oops_212.csv"  #why only one fc?? because the name is the sameee
+                    with open(csvLocation,'wb') as openCSV:
+                        a = csv.writer(openCSV)
+                        message = [['fc','eurostat_ha','corine_ha']]
+                        a.writerows(message)
+                        fields = ["EUSTATha","ha"]
+                        #Loop through fields and write to csv
+                        for field in fields:
+                            message = [[fc,sumEU_ct, sum_ct]]
+                            a.writerows(message)
+
+
+
+
+----
+
+csv write results
+
+import os
+import arcpy
+import itertools
+import numpy
+import csv
+folderPath = r"F:\bioraise\landcover\corine\corine_grid\agriculture_february\clean"
+arcpy.env.workspace = folderPath
+
+List = [] 
+fcList = arcpy.ListFeatureClasses("*drop*","All")
+
+for fc in fcList:
+    ha = "hafNUT"
+    av = "tDMdNUT"
+    pot = "tDMpNUT"
+    nut = "NUTS_ID"
+    fcname = fc.split(".shp")[0]
+    #print fcname
+    outname = fcname +"_stats.csv" 
+    fullPath = os.path.join(folderPath, outname)
+    #print fullPath
+    csvLocation = fullPath 
+    List.append(fc)   
+    for fc in List:
+        with open(csvLocation,'wb') as openCSV:
+            a = csv.writer(openCSV)
+            message = [['fc','ha_applied','available_bm', 'potential_bm','NUT2']]
+            expression = "miFunc(!NUTS_ID!, !tDMpNUT!, !tDMdNUT!, !hafNUT!)"
+            codeblock = """def miFunc(miNut2, mipot, midisp, misup):  
+                hafNUT = ([r[0] for r in arcpy.da.SearchCursor(fc,[misup, "Nut2"], where_clause="Nut2 like '" + miNut2 + "'")])
+                return hafNUT"""
+                a.writerows(message)
+                fields = ["hafNUT","tDMdNUT", "tDMpNUT", "NUTS_ID"]
+            
+                for field in fields:
+                    message = [[fc,ha,av, pot, nut]]
+                    try:
+                        a.writerows(codeblock)  
+                        print fc + "done"
+                    except:
+                        print fc
+                        continue
+
+
+--
+
+
+import os
+import arcpy
+import itertools
+import numpy
+import csv
+folderPath = r"F:\bioraise\landcover\corine\corine_grid\agriculture_february\clean"
+arcpy.env.workspace = folderPath
+
+List = [] 
+fcList = arcpy.ListFeatureClasses("*drop*","All")
+
+for fc in fcList:
+    ha = "hafNUT"
+    av = "tDMdNUT"
+    pot = "tDMpNUT"
+    nut = "NUTS_ID"
+    fcname = fc.split(".shp")[0]
+    #print fcname
+    outname = fcname +"_stats.csv" 
+    fullPath = os.path.join(folderPath, outname)
+    #print fullPath
+    csvLocation = fullPath 
+    List = []
+    List.append(fc)
+    print List 
+    for item in List:
+        with open(csvLocation,'wb') as openCSV:
+            expression = "miFunc(!NUTS_ID!, !tDMpNUT!, !tDMdNUT!, !hafNUT!)"
+            codeblock = """def miFunc(miNut2, mipot, midisp, misup):  
+                hafNUT = ([r[0] for r in arcpy.da.SearchCursor(fc,[misup, "Nut2"], where_clause="Nut2 like '" + miNut2 + "'")])
+                return hafNUT"""
+            a.writerows(codeblock)
+            fields = ["hafNUT","tDMdNUT", "tDMpNUT", "NUTS_ID"]
+            for field in fields:
+                message = [[fc,ha,av, pot, nut]]
+                try:
+                    a.writerows(codeblock)  
+                    print fc + "done"
+                except:
+                    print fc
+                    continue
+
+            a = csv.writer(openCSV)
+            message = [['fc','ha_applied','available_bm', 'potential_bm','NUT2']]
+            a.writerows(message)
+            fields = ["hafNUT","tDMdNUT", "tDMpNUT", "NUTS_ID"]
+            for field in fields:
+                message = [[fc,ha, av,pot, nut]]
+                a.writerows(message)
+            
+
+
+
+
+expression = "miFunc(!NUTS_ID!, !tDMpNUT!, !tDMdNUT!, !hafNUT!)"
+            codeblock = """def miFunc(miNut2, mipot, midisp, misup):  
+                hafNUT = ([r[0] for r in arcpy.da.SearchCursor(fc,[misup, "Nut2"], where_clause="Nut2 like '" + miNut2 + "'")])
+                return hafNUT"""
+                a.writerows(message)
+                fields = ["hafNUT","tDMdNUT", "tDMpNUT", "NUTS_ID"]
+            
+                for field in fields:
+                    message = [[fc,ha,av, pot, nut]]
+                    try:
+                        a.writerows(codeblock)  
+                        print fc + "done"
+                    except:
+                        print fc
+                        continue
+
+List = [] 
+        fcList = arcpy.ListFeatureClasses()
+        for fc in fcList:
+            List.append(fc)   
+            field = arcpy.da.TableToNumPyArray (fc, "ha", skip_nulls=True)
+            sum = field["ha"].sum()
+            sum_ct = sum.astype(float)
+            #print sum_ct # Corine hectares
+            field = arcpy.da.TableToNumPyArray (fc, "EUSTATha", skip_nulls=True)
+            sumEU = field["EUSTATha"].sum()
+            #print sumEU # Eurostat hectares
+            sumEU_ct = sumEU.astype(float)
+            #if sumEU_ct is not None:
+            if sum_ct < sumEU_ct: 
+                List_oops = []
+                List_oops.append(fc) # para cada uno lo repite
+                print List_oops
+                for fc in List_oops:
+                    csvLocation = outname 
+                    outname = fc +"oops_212.csv"  #why only one fc?? because the name is the sameee
+                    with open(csvLocation,'wb') as openCSV:
+                        a = csv.writer(openCSV)
+                        message = [['fc','eurostat_ha','corine_ha']]
+                        a.writerows(message)
+                        fields = ["EUSTATha","ha"]
+                        #Loop through fields and write to csv
+                        for field in fields:
+                            message = [[fc,sumEU_ct, sum_ct]]
+                            a.writerows(message)
