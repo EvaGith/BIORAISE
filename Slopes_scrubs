@@ -1,0 +1,671 @@
+# mdt ascii files downloaded from IGN. to raster from ascii. slope. mosaic to new raster. extract by mask with circles and with scrubs (modelos biomasa ETRS89)
+# rename files and generate a gdb with clips
+slope_XX_c
+slope_XX_m
+
+# select slopes < 35
+
+import arcpy
+import os
+from arcpy import env
+from arcpy.sa import *
+
+arcpy.env.workspace = r"F:\bioraise\enerbioscrub\slope_5m\outfloat\clips"  # path to clips c & m
+rasterList = arcpy.ListRasters()
+for raster in rasterList:
+    arcpy.CheckOutExtension("Spatial")  
+    outLessThan = Raster(raster) < 35
+    outpath = r"F:\bioraise\enerbioscrub\slope_5m\outfloat\clips\lt35\m"
+    outname = os.path.join(outpath, raster.split(".")[0] + '_lt35.tif')
+    outLessThan.save(outname)
+    print "done"
+
+ 
+#this works but generates a mask (0/1). So the original raster must be multiplied  
+
+# prior step to multiplying: select only de gridcode = 1 (leave out 0 > 35) in the masks   
+# Con (in_conditional_raster, in_true_raster_or_constant, {in_false_raster_or_constant}, {where_clause})
+
+##scrub
+import arcpy
+import os
+from arcpy import env
+from arcpy.sa import *
+arcpy.env.workspace = r"F:\bioraise\enerbioscrub\slope_5m\outfloat\clips\lt35\m"  # path to clips c & m
+rasterList = arcpy.ListRasters()
+for raster in rasterList:
+    arcpy.CheckOutExtension("Spatial")  
+    selec1 = Con (raster, 1) 
+    outpath = r"F:\bioraise\enerbioscrub\slope_5m\outfloat\clips\lt35\m\m_data"
+    outname = os.path.join(outpath, raster.split(".")[0] + '_msk1.tif')
+    selec1.save(outname)
+    print "done"
+    
+##circles
+import arcpy
+import os
+from arcpy import env
+from arcpy.sa import *
+arcpy.env.workspace = r"F:\bioraise\enerbioscrub\slope_5m\outfloat\clips\lt35\c"  # path to clips c & m
+rasterList = arcpy.ListRasters()
+for raster in rasterList:
+    arcpy.CheckOutExtension("Spatial")  
+    selec1 = Con (raster, 1) 
+    outpath = r"F:\bioraise\enerbioscrub\slope_5m\outfloat\clips\lt35\c"
+    outname = os.path.join(outpath, raster.split(".")[0] + '_msk1.tif')
+    selec1.save(outname)
+    print "done"
+
+# VALUES (mask * slope values)  FROM HEREEEEE
+
+##### try loop later on...
+## scrub 
+import arcpy
+from arcpy import env
+from arcpy.sa import *
+arcpy.env.workspace = r"F:\bioraise\enerbioscrub\slope_5m\outfloat\clips\lt35\m\m_data"
+inRaster1 = Raster("slope_fabero_m.tif")
+inRaster2 = Raster("slope_fabero_m_lt35_msk1.tif")
+arcpy.CheckOutExtension("Spatial")
+outTimes = inRaster1 * inRaster2
+outTimes.save("F:\\bioraise\\enerbioscrub\\slope_5m\\outfloat\\clips\\lt35\\m\\m_data\\slope_fabero_m_lt35_msk1_data.tif")
+
+import arcpy
+from arcpy import env
+from arcpy.sa import *
+arcpy.env.workspace = r"F:\bioraise\enerbioscrub\slope_5m\outfloat\clips\lt35\m\m_data"
+inRaster1 = Raster("slope_navas_m.tif")
+inRaster2 = Raster("slope_navas_m_lt35_msk1.tif")
+arcpy.CheckOutExtension("Spatial")
+outTimes = inRaster1 * inRaster2
+outTimes.save("F:\\bioraise\\enerbioscrub\\slope_5m\\outfloat\\clips\\lt35\\m\\m_data\\slope_navas_m_lt35_msk1_data.tif")
+
+import arcpy
+from arcpy import env
+from arcpy.sa import *
+arcpy.env.workspace = r"F:\bioraise\enerbioscrub\slope_5m\outfloat\clips\lt35\m\m_data"
+inRaster1 = Raster("slope_garray_m.tif")
+inRaster2 = Raster("slope_garray_m_lt35_msk1.tif")
+arcpy.CheckOutExtension("Spatial")
+outTimes = inRaster1 * inRaster2
+outTimes.save("F:\\bioraise\\enerbioscrub\\slope_5m\\outfloat\\clips\\lt35\\m\\m_data\\slope_garray_m_lt35_msk1_data.tif")
+
+import arcpy
+from arcpy import env
+from arcpy.sa import *
+arcpy.env.workspace = r"F:\bioraise\enerbioscrub\slope_5m\outfloat\clips\lt35\m\m_data"
+inRaster1 = Raster("slope_villardeciervo_m.tif")
+inRaster2 = Raster("slope_villardeciervo_m_lt35_msk1.tif")
+arcpy.CheckOutExtension("Spatial")
+outTimes = inRaster1 * inRaster2
+outTimes.save("F:\\bioraise\\enerbioscrub\\slope_5m\\outfloat\\clips\\lt35\\m\\m_data\\slope_villardeciervo_m_lt35_msk1_data.tif")
+
+## circles
+"slope_fabero_circle_lt35_data.tif"*"slope_fabero_circle_lt35_msk1.tif"	F:\bioraise\enerbioscrub\slope_5m\outfloat\clips\lt35\c\slope_fabero_c_lt35_msk1_data.tif
+
+import arcpy
+from arcpy import env
+from arcpy.sa import *
+arcpy.env.workspace = r"F:\bioraise\enerbioscrub\slope_5m\outfloat\clips\lt35\c"
+inRaster1 = Raster("slope_fabero_circle_lt35_data.tif")
+inRaster2 = Raster("slope_fabero_circle_lt35_msk1.tif")
+arcpy.CheckOutExtension("Spatial")
+outTimes = inRaster1 * inRaster2
+outTimes.save("F:\\bioraise\\enerbioscrub\\slope_5m\\outfloat\\clips\\lt35\\c\\slope_fabero_c_lt35_msk1_data.tif")
+
+import arcpy
+from arcpy import env
+from arcpy.sa import *
+arcpy.env.workspace = r"F:\bioraise\enerbioscrub\slope_5m\outfloat\clips\lt35\c"
+inRaster1 = Raster("slope_navas_circle_lt35_data.tif")
+inRaster2 = Raster("slope_navas_circle_lt35_msk1.tif")
+arcpy.CheckOutExtension("Spatial")
+outTimes = inRaster1 * inRaster2
+outTimes.save("F:\\bioraise\\enerbioscrub\\slope_5m\\outfloat\\clips\\lt35\\c\\slope_navas_c_lt35_msk1_data.tif")
+
+import arcpy
+from arcpy import env
+from arcpy.sa import *
+arcpy.env.workspace = r"F:\bioraise\enerbioscrub\slope_5m\outfloat\clips\lt35\c"
+inRaster1 = Raster("slope_garray_circle_lt35_data.tif")
+inRaster2 = Raster("slope_garray_circle_lt35_msk1.tif")
+arcpy.CheckOutExtension("Spatial")
+outTimes = inRaster1 * inRaster2
+outTimes.save("F:\\bioraise\\enerbioscrub\\slope_5m\\outfloat\\clips\\lt35\\c\\slope_garray_c_lt35_msk1_data.tif")
+
+import arcpy
+from arcpy import env
+from arcpy.sa import *
+arcpy.env.workspace = r"F:\bioraise\enerbioscrub\slope_5m\outfloat\clips\lt35\c"
+inRaster1 = Raster("slope_villardeciervo_circle_lt35_data.tif")
+inRaster2 = Raster("slope_villardeciervo_circle_lt35_msk1.tif")
+arcpy.CheckOutExtension("Spatial")
+outTimes = inRaster1 * inRaster2
+outTimes.save("F:\\bioraise\\enerbioscrub\\slope_5m\\outfloat\\clips\\lt35\\c\\slope_villardeciervo_c_lt35_msk1_data.tif")
+
+---NOT DONE BECAUSE OF ERRORS
+# domain to vector (polygons) to calculate hectares /
+
+import arcpy
+import os
+from arcpy import env
+arcpy.env.workspace = r"F:\bioraise\enerbioscrub\slope_5m\outfloat\clips\lt35\lt35.gdb"  # path to clips c & m
+rasterList = arcpy.ListRasters()
+print rasterList
+if rasterList:
+    for raster in rasterList:
+        outGeom = "POLYGON"
+        # The [:-5] strips the .tiff from the raster name
+        outPoly = "domain_" + raster[:-5] + ".shp"
+        arcpy.RasterDomain_3d(raster, outPoly, outGeom)
+        print "Finished."
+    else:
+        "There are no TIFF files in the " + env.workspace + " directory."
+        except Exception as e:
+        # Returns any other error messages
+        print e.message
+
+---DONE FROM HERE
+
+# ALTERNATIVE: RASTER TO VECTOR
+import arcpy
+import os
+from arcpy import env
+arcpy.env.workspace = r"F:\bioraise\enerbioscrub\slope_5m\outfloat\clips\lt35\m\m_data" 
+rasterList = arcpy.ListRasters("*_msk1.tif", "All")
+print rasterList
+for raster in rasterList:
+    inRaster = raster
+    outPolygons = "poly_" + raster[:-5] + ".shp"
+    field = "VALUE"
+    # Execute RasterToPolygon
+    arcpy.RasterToPolygon_conversion(inRaster, outPolygons, "NO_SIMPLIFY", field)
+
+import arcpy
+... import os
+... from arcpy import env
+... arcpy.env.workspace = r"F:\bioraise\enerbioscrub\slope_5m\outfloat\clips\lt35\c" 
+... rasterList = arcpy.ListRasters("*_msk1.tif", "All")
+... print rasterList
+... for raster in rasterList:
+...     inRaster = raster
+...     outPolygons = "poly_" + raster[:-5] + ".shp"
+...     field = "VALUE"
+...     # Execute RasterToPolygon
+...     arcpy.RasterToPolygon_conversion(inRaster, outPolygons, "NO_SIMPLIFY", field)
+
+-simplify polygons
+import arcpy
+import os
+from arcpy import env
+arcpy.env.workspace = r"F:\bioraise\enerbioscrub\slope_5m\outfloat\clips\lt35\m\m_data" 
+rasterList = arcpy.ListRasters("*_msk1.tif", "All")
+print rasterList
+for raster in rasterList:
+    inRaster = raster
+    outPolygons = "polysim_" + raster[:-5] + ".shp"
+    field = "VALUE"
+    # Execute RasterToPolygon
+    arcpy.RasterToPolygon_conversion(inRaster, outPolygons, "SIMPLIFY", field)
+
+import arcpy
+... import os
+... from arcpy import env
+... arcpy.env.workspace = r"F:\bioraise\enerbioscrub\slope_5m\outfloat\clips\lt35\c" 
+... rasterList = arcpy.ListRasters("*_msk1.tif", "All")
+... print rasterList
+... for raster in rasterList:
+...     inRaster = raster
+...     outPolygons = "polysim_" + raster[:-5] + ".shp"
+...     field = "VALUE"
+...     # Execute RasterToPolygon
+...     arcpy.RasterToPolygon_conversion(inRaster, outPolygons, "SIMPLIFY", field)
+
+
+#import shapes to gdb
+
+import arcpy
+arcpy.env.workspace = r"F:\bioraise\enerbioscrub\slope_5m\outfloat\clips\lt35\c"
+fcs = arcpy.ListFeatureClasses("polysim*", "All")
+outLocation = r"F:\bioraise\enerbioscrub\slope_5m\outfloat\clips\lt35\lt35.gdb"
+print("Importing shapes to gdb: " + outLocation)
+arcpy.FeatureClassToGeodatabase_conversion(fcs, outLocation)
+
+import arcpy
+arcpy.env.workspace = r"F:\bioraise\enerbioscrub\slope_5m\outfloat\clips\lt35\m\m_data"
+fcs = arcpy.ListFeatureClasses("polysim*", "All")
+outLocation = r"F:\bioraise\enerbioscrub\slope_5m\outfloat\clips\lt35\lt35.gdb"
+print("Importing shapes to gdb: " + outLocation)
+arcpy.FeatureClassToGeodatabase_conversion(fcs, outLocation)
+
+# calculate areas (ha)
+import arcpy
+arcpy.env.workspace = r"F:\bioraise\enerbioscrub\slope_5m\outfloat\clips\lt35\lt35.gdb"
+featureClasses = arcpy.ListFeatureClasses("poly_*")
+for fc in featureClasses:
+	arcpy.AddField_management(fc,"ha","Double")   ##arcpy.AddField_management(fc,"ha","FLOAT","", "", "", "ha", "NULLABLE", "NON_REQUIRED", "")
+	expression1 = "{0}".format("!SHAPE.area@HECTARES!")        
+	arcpy.CalculateField_management(fc, "ha", expression1, "PYTHON", )
+
+import arcpy
+arcpy.env.workspace = r"F:\bioraise\enerbioscrub\slope_5m\outfloat\clips\lt35\c"
+featureClasses = arcpy.ListFeatureClasses("poly_*")
+for fc in featureClasses:
+	arcpy.AddField_management(fc,"ha","Double")   ##arcpy.AddField_management(fc,"ha","FLOAT","", "", "", "ha", "NULLABLE", "NON_REQUIRED", "")
+	expression1 = "{0}".format("!SHAPE.area@HECTARES!")        
+	arcpy.CalculateField_management(fc, "ha", expression1, "PYTHON", )
+
+import arcpy
+arcpy.env.workspace = r"F:\bioraise\enerbioscrub\slope_5m\outfloat\clips\lt35\m\m_data"
+featureClasses = arcpy.ListFeatureClasses("poly_*")
+for fc in featureClasses:
+	arcpy.AddField_management(fc,"ha","Double")   ##arcpy.AddField_management(fc,"ha","FLOAT","", "", "", "ha", "NULLABLE", "NON_REQUIRED", "")
+	expression1 = "{0}".format("!SHAPE.area@HECTARES!")        
+	arcpy.CalculateField_management(fc, "ha", expression1, "PYTHON", )
+
+
+--areas for simplified polygons
+
+import arcpy
+arcpy.env.workspace = r"F:\bioraise\enerbioscrub\slope_5m\outfloat\clips\lt35\lt35.gdb"
+featureClasses = arcpy.ListFeatureClasses("polysim_*")
+for fc in featureClasses:
+	arcpy.AddField_management(fc,"ha","Double")   ##arcpy.AddField_management(fc,"ha","FLOAT","", "", "", "ha", "NULLABLE", "NON_REQUIRED", "")
+	expression1 = "{0}".format("!SHAPE.area@HECTARES!")        
+	arcpy.CalculateField_management(fc, "ha", expression1, "PYTHON", )
+
+
+
+##--single layer area in hectares
+##import arcpy
+##arcpy.env.workspace="F:/bioraise/enerbioscrub/slope_5m/outfloat/circulos_rasters_slope/output_lt35"
+##fc="fabero_slopelt35_circle.shp"
+##arcpy.AddField_management(fc,"ha","Double")
+##expression1 = "{0}".format("!SHAPE.area@HECTARES!")        
+##arcpy.CalculateField_management(fc, "ha", expression1, "PYTHON", )
+---
+
+# select > 30 ha
+import arcpy
+import os
+arcpy.env.workspace = r"F:\bioraise\enerbioscrub\slope_5m\outfloat\clips\lt35\lt35.gdb"
+fcList = arcpy.ListFeatureClasses("poly_*")
+for fc in fcList:
+    arcpy.CheckOutExtension("Spatial")  
+    #SelectLayerByAttribute_management (in_layer_or_view, {selection_type}, {where_clause}, {invert_where_clause})
+    # Make a layer from the feature class
+    arcpy.MakeFeatureLayer_management(fc, "lyr") 
+    arcpy.SelectLayerByAttribute_management("lyr", "NEW_SELECTION", ' "ha" > 30 ')
+    # Write the selected features to a new featureclass
+    outname = fc +"_gt30.shp"
+    arcpy.CopyFeatures_management("lyr", outname)
+    print "done"
+
+import arcpy
+import os
+arcpy.env.workspace = r"F:\bioraise\enerbioscrub\slope_5m\outfloat\clips\lt35\lt35.gdb"
+fcList = arcpy.ListFeatureClasses("polysim_*")
+for fc in fcList:
+    arcpy.CheckOutExtension("Spatial")  
+    #SelectLayerByAttribute_management (in_layer_or_view, {selection_type}, {where_clause}, {invert_where_clause})
+    # Make a layer from the feature class
+    arcpy.MakeFeatureLayer_management(fc, "lyr") 
+    arcpy.SelectLayerByAttribute_management("lyr", "NEW_SELECTION", ' "ha" > 30 ')
+    # Write the selected features to a new featureclass
+    outname = fc +"_gt30.shp"
+    arcpy.CopyFeatures_management("lyr", outname)
+    print "done"
+
+----------------------------------------APPROACH 1. 
+# MORE DIRECT ALTERNATIVE: SELECTION WITHIN 500 m AND SUBSELECTION > 5 HA in a single step
+# layer to select from: "poly_slope_fabero_circle_lt35_msk" (has attributes ha) 
+# that are within 500 m from "poly_slope_fabero_circle_lt35_msk_gt30"
+# try to do loop with matching characters
+
+## works but for specific layers
+# Import system modules
+import arcpy
+arcpy.env.workspace = r"F:\bioraise\enerbioscrub\slope_5m\outfloat\clips\lt35\lt35.gdb"
+arcpy.env.overwriteOutput = True
+fcLst = arcpy.ListFeatureClasses()
+# Make a layer from the feature class
+outname = fc +"_lt500gt5.shp"
+arcpy.MakeFeatureLayer_management("poly_slope_fabero_circle_lt35_msk", "lyr") 
+# Select polygons within 500 m from the lt35gt30 polygons
+arcpy.SelectLayerByLocation_management("lyr", "WITHIN_A_DISTANCE", "poly_slope_fabero_circle_lt35_msk_gt30", 500, "new_selection")
+# Within selected features, further select only those polygons which have a surface > 5 ha   
+arcpy.SelectLayerByAttribute_management("lyr", "SUBSET_SELECTION", ' "ha" > 5 ')
+# Write the selected features to a new featureclass
+# arcpy.CopyFeatures_management("lyr", outname) for loop statement
+arcpy.CopyFeatures_management("lyr", "poly_slope_fabero_circle_lt35_lt500fgt30gt5.shp")
+
+##loop with matching name string: works
+import arcpy
+ws = r"F:\bioraise\enerbioscrub\slope_5m\outfloat\clips\lt35\lt35.gdb"
+arcpy.env.workspace = ws
+arcpy.env.overwriteOutput = True
+fcLst = arcpy.ListFeatureClasses("polysim_slope_*_*_lt35_msk", "All") # only lt35_msk.tifs
+fcgt30Lst = arcpy.ListFeatureClasses("polysim_slope_*_*_lt35_msk_gt30", "All") # only lt35_msk_gt30
+#print fcgt30Lst
+for fc in fcgt30Lst:
+    name1 = fc 
+    #print name1
+    for fc in fcLst:
+        outpath = ws
+        arcpy.MakeFeatureLayer_management(fc, "lyr") 
+        # Select polygons within 500 m from the lt35gt30 polygons
+        arcpy.SelectLayerByLocation_management("lyr", "WITHIN_A_DISTANCE", name1, 500, "new_selection") 
+        # Within selected features, further select only those polygons which have a surface > 5 ha   
+        arcpy.SelectLayerByAttribute_management("lyr", "SUBSET_SELECTION", ' "ha" > 5 ')
+        # Write the selected features to a new featureclass 
+        outname = fc.split("lt35_msk_gt30")[0] +"lt35_lt500gt5.shp"
+        arcpy.CopyFeatures_management("lyr", outname) 
+### check again because I think this is the g30+gt5ha all together: it would be like the union in a single step
+## if yes: just these layers by the slope values and then geometry tools to be tested (focal, zonal geometry, statistics functions)
+---
+import arcpy
+ws = r"F:\bioraise\enerbioscrub\slope_5m\outfloat\clips\lt35\lt35.gdb"
+arcpy.env.workspace = ws
+arcpy.env.overwriteOutput = True
+fcLst = arcpy.ListFeatureClasses("polysim_slope_*_*_lt35_msk", "All") # only lt35_msk.tifs
+fcgt30Lst = arcpy.ListFeatureClasses("polysim_slope_*_*_lt35_msk_gt30", "All") # lt35_msk & lt35_msk_gt30
+#print fcgt30Lst
+for fc in fcgt30Lst:
+    name = fc.split("lt35_msk")[0] +"lt35_msk_gt30" # (split = "polysim_slope_fabero_circle_")
+    #print name #(results in 8 shps) here an array matrix like the ones for forestry models might be useful
+    for fc in fcLst:
+        outpath = ws
+        arcpy.MakeFeatureLayer_management(fc, "lyr") 
+        # Select polygons within 500 m from the lt35gt30 polygons
+        arcpy.SelectLayerByLocation_management("lyr", "WITHIN_A_DISTANCE", name, 500, "new_selection") #this will make 8 selections for each fc (one by each name: 8 shps) 
+        # Within selected features, further select only those polygons which have a surface > 5 ha   
+        arcpy.SelectLayerByAttribute_management("lyr", "SUBSET_SELECTION", ' "ha" > 5 ')
+        # Write the selected features to a new featureclass 
+        outname = name +"_lt500gt5.shp"
+        arcpy.CopyFeatures_management("lyr", outname) for loop statement
+        #arcpy.CopyFeatures_management("lyr", "poly_slope_fabero_circle_lt35_lt500fgt30gt5.shp")
+
+# mask (shp gt30gt5 * slope values): extract by mask: slope value raster by gt30 polygons mask
+## clip 
+#Clip_management (in_raster, rectangle, out_raster, {in_template_dataset}, {nodata_value}, {clipping_geometry}, {maintain_clipping_extent})
+import arcpy, os
+arcpy.env.workspace = r"F:\bioraise\enerbioscrub\slope_5m\outfloat\clips\lt35\lt35.gdb"
+ws = r"F:\bioraise\enerbioscrub\slope_5m\outfloat\clips\lt35\lt35.gdb"
+rstLst = arcpy.ListRasters("*_data", "All")
+print rstLst #missing fabero circle slope data raster
+fcLst = arcpy.ListFeatureClasses("*_lt500gt5*" , "All")
+print fcLst
+for fc in fcLst:
+    arcpy.env.workspace = arcpy.GetParameterAsText(0)
+    fc = arcpy.GetParameterAsText(1)
+    out_workspace = arcpy.GetParameterAsText(2)
+    out_featureclass = os.path.join(out_workspace,os.path.basename(fc))
+    print out_featureclass
+for raster in rstLst:
+    outname = raster +"_lt500gt5.tif"
+    clipshp = fc   ##match name with raster
+    arcpy.Clip_management(raster,"", outname, clipshp, "#", "ClippingGeometry", "NONE")
+
+#***TRY TO MATCH BY NAMES THROUGH SPLITTING NAMES***
+## first convert rasters from FGDBR to TIF (output folder must not be gdb)
+import arcpy
+from arcpy import env
+from arcpy.sa import *
+arcpy.env.overwriteOutput = True
+ws = r"F:\bioraise\enerbioscrub\slope_5m\outfloat\clips\lt35\lt35.gdb"
+arcpy.env.workspace = ws
+outpath = r"F:\bioraise\enerbioscrub\slope_5m\outfloat\clips\lt35\tif"
+fcList = arcpy.ListFeatureClasses("polysim_*")
+#print(fcList)  
+rasterList = arcpy.ListRasters("*_msk1_data", "All")
+for raster in rasterList:
+    arcpy.RasterToOtherFormat_conversion (raster, outpath, "TIFF") #problems with FGDBR rasters...
+    print "done"
+# inMaskData = "polysim_slope_fabero_m_lt35_msklt35_lt500gt5.shp"
+# inRaster = "slope_fabero_m_lt35_msk1_data.tif"
+## some error in Fabero circle
+import arcpy
+from arcpy import env
+from arcpy.sa import *
+arcpy.env.overwriteOutput = True
+ws = r"F:\bioraise\enerbioscrub\slope_5m\outfloat\clips\lt35\lt35.gdb"
+arcpy.env.workspace = ws
+fcList = arcpy.ListFeatureClasses("polysim_*")
+#print(fcList)  
+rasterList = arcpy.ListRasters()
+#for raster in rasterList:
+    #arcpy.RasterToOtherFormat_conversion (raster, ws, "TIFF") #problems with FGDBR rasters...
+    #print "done"
+inRaster = "slope_fabero_m_lt35_msk1_data" # slope data prior to clips, etc. 
+inMaskData = "polysim_slope_fabero_m_lt35_msklt35_lt500gt5.shp"
+arcpy.CheckOutExtension("Spatial")
+outExtractByMask = ExtractByMask(inRaster, inMaskData)
+outExtractByMask.save("slope_fabero_m_lt35gt30_lt500gt5_data")
+print ("done")
+
+# once this manual attempt is done, 
+
+## scrub
+import arcpy
+from arcpy import env
+from arcpy.sa import *
+arcpy.env.overwriteOutput = True
+ws = r"F:\bioraise\enerbioscrub\slope_5m\outfloat\clips\lt35\lt35.gdb"
+arcpy.env.workspace = ws
+fcList = arcpy.ListFeatureClasses("polysim_*")
+#print(fcList)  
+rasterList = arcpy.ListRasters()
+for raster in rasterList:
+    arcpy.RasterToOtherFormat_conversion (raster, ws, "TIFF") #problems with FGDBR rasters...
+    print "done"
+inRaster = "slope_fabero_m_lt35_msk1_data.tif"
+inMaskData = "polysim_slope_fabero_m_lt35_msklt35_lt500gt5.shp"
+arcpy.CheckOutExtension("Spatial")
+outExtractByMask = ExtractByMask(inRaster, inMaskData)
+outExtractByMask.save("slope_fabero_m_lt35gt30_lt500gt5_data.tif")
+
+import arcpy
+from arcpy import env
+from arcpy.sa import *
+ws = r"F:\bioraise\enerbioscrub\slope_5m\outfloat\clips\lt35\lt35.gdb"
+arcpy.env.workspace = ws
+fcList = arcpy.ListFeatureClasses("polysim_*")
+print(fcList)  
+inRaster = "slope_villardeciervo_m_lt35_msk1_data.tif"
+inMaskData = "polysim_slope_villardeciervo_m_lt35_msk_gt30.shp"
+arcpy.CheckOutExtension("Spatial")
+outExtractByMask = ExtractByMask(inRaster, inMaskData)
+outExtractByMask.save("slope_villardeciervo_m_lt35gt30_data.tif")
+
+import arcpy
+from arcpy import env
+from arcpy.sa import *
+ws = r"F:\bioraise\enerbioscrub\slope_5m\outfloat\clips\lt35\lt35.gdb"
+arcpy.env.workspace = ws
+fcList = arcpy.ListFeatureClasses("polysim_*")
+print(fcList)  
+inRaster = "slope_garray_m_lt35_msk1_data.tif"
+inMaskData = "polysim_garray_m_lt35_msk_gt30.shp"
+arcpy.CheckOutExtension("Spatial")
+outExtractByMask = ExtractByMask(inRaster, inMaskData)
+outExtractByMask.save("slope_garray_m_lt35gt30_data.tif")
+
+import arcpy
+from arcpy import env
+from arcpy.sa import *
+ws = r"F:\bioraise\enerbioscrub\slope_5m\outfloat\clips\lt35\lt35.gdb"
+arcpy.env.workspace = ws
+fcList = arcpy.ListFeatureClasses("polysim_*")
+print(fcList)  
+inRaster = "slope_navas_m_lt35_msk1_data.tif"
+inMaskData = "polysim_slope_navas_m_lt35_msk_gt30.shp"
+arcpy.CheckOutExtension("Spatial")
+outExtractByMask = ExtractByMask(inRaster, inMaskData)
+outExtractByMask.save("slope_navas_m_lt35gt30_data.tif")
+
+##circles
+# scrub
+import arcpy
+from arcpy import env
+from arcpy.sa import *
+ws = r"F:\bioraise\enerbioscrub\slope_5m\outfloat\clips\lt35\lt35.gdb"
+arcpy.env.workspace = ws
+fcList = arcpy.ListFeatureClasses("polysim_*")
+print(fcList)  
+inRaster = "slope_fabero_circle_lt35_msk1_data.tif"
+inMaskData = "polysim_slope_fabero_circle_lt35_msk_gt30.shp"
+arcpy.CheckOutExtension("Spatial")
+outExtractByMask = ExtractByMask(inRaster, inMaskData)
+outExtractByMask.save("slope_fabero_circle_lt35gt30_data.tif")
+
+import arcpy
+from arcpy import env
+from arcpy.sa import *
+ws = r"F:\bioraise\enerbioscrub\slope_5m\outfloat\clips\lt35\lt35.gdb"
+arcpy.env.workspace = ws
+fcList = arcpy.ListFeatureClasses("polysim_*")
+print(fcList)  
+inRaster = "slope_villardeciervo_circle_lt35_msk1_data.tif"
+inMaskData = "polysim_slope_villardeciervo_circle_lt35_msk_gt30.shp"
+arcpy.CheckOutExtension("Spatial")
+outExtractByMask = ExtractByMask(inRaster, inMaskData)
+outExtractByMask.save("slope_villardeciervo_circle_lt35gt30_data.tif")
+
+import arcpy
+from arcpy import env
+from arcpy.sa import *
+ws = r"F:\bioraise\enerbioscrub\slope_5m\outfloat\clips\lt35\lt35.gdb"
+arcpy.env.workspace = ws
+fcList = arcpy.ListFeatureClasses("polysim_*")
+print(fcList)  
+inRaster = "slope_garray_circle_lt35_msk1_data.tif"
+inMaskData = "polysim_garray_circle_lt35_msk_gt30.shp"
+arcpy.CheckOutExtension("Spatial")
+outExtractByMask = ExtractByMask(inRaster, inMaskData)
+outExtractByMask.save("slope_garray_circle_lt35gt30_data.tif")
+
+import arcpy
+from arcpy import env
+from arcpy.sa import *
+ws = r"F:\bioraise\enerbioscrub\slope_5m\outfloat\clips\lt35\lt35.gdb"
+arcpy.env.workspace = ws
+fcList = arcpy.ListFeatureClasses("polysim_*")
+print(fcList)  
+inRaster = "slope_navas_circle_lt35_msk1_data.tif"
+inMaskData = "polysim_slope_navas_circle_lt35_msk_gt30.shp"
+arcpy.CheckOutExtension("Spatial")
+outExtractByMask = ExtractByMask(inRaster, inMaskData)
+outExtractByMask.save("slope_navas_circle_lt35gt30_data.tif")
+## with this, the lower than 35% slopes and greater than 30 ha are selected and have the original value
+*****************
+GEOMETRY TOOLS
+# geometry tools: 
+## Zonal geometry.http://desktop.arcgis.com/es/arcmap/10.3/tools/spatial-analyst-toolbox/h-how-zonal-geometry-works.htm
+# Description:Calculates for each zone in a dataset the specified geometry measure (area, perimeter, thickness, or the characteristics of ellipse).
+# Requirements: Spatial Analyst Extension
+import arcpy
+from arcpy import env
+from arcpy.sa import *
+arcpy.env.workspace = r"F:\bioraise\enerbioscrub\slope_5m\outfloat\clips\lt35\geotools.gdb"
+fcLst = arcpy.ListFeatureClasses()
+rstLst = arcpy.ListRasters()
+for raster in rstLst:
+    inZoneData = raster # if error: try shp *_gt30lt500gt5
+    zoneField = "Value"  # check if it has sense for value or try for gridcode (all 1) ??
+    cellSize = 0.2
+    arcpy.CheckOutExtension("Spatial")
+    # Execute ZonalStatistics
+    outZonalGeometry = ZonalGeometry(inZoneData, zoneField, "AREA", cellSize)  
+    outname = raster +"_area"
+    outZonalGeometry.save(outname)
+    outZonalGeometry = ZonalGeometry(inZoneData, zoneField, "PERIMETER", cellSize)
+    outname2 = raster +"_perimeter"
+    outZonalGeometry.save(outname2)
+    outZonalGeometry = ZonalGeometry(inZoneData, zoneField, "THICKNESS", cellSize)
+    outname3 = raster +"_thickness"
+    outZonalGeometry.save(outname3)
+    outZonalGeometry = ZonalGeometry(inZoneData, zoneField, "CENTROID", cellSize)
+    outname4 = raster +"_centroid"
+    outZonalGeometry.save(outname4)
+
+## Statistics function. http://desktop.arcgis.com/es/arcmap/10.3/manage-data/raster-and-images/statistics-function.htm
+
+## Focal stats. http://desktop.arcgis.com/es/arcmap/10.3/tools/spatial-analyst-toolbox/focal-statistics.htm 
+# Description: Calculates a statistic on a raster over a specified neighborhood.
+# Requirements: Spatial Analyst Extension
+import arcpy
+from arcpy import env
+from arcpy.sa import *
+arcpy.env.workspace = r"F:\bioraise\enerbioscrub\slope_5m\outfloat\clips\lt35\geotools.gdb"
+rstLst = arcpy.ListRasters()
+for raster in rstLst:
+    inRaster = "elevation"
+    neighborhood = NbrRectangle(10, 10, "CELL")
+    arcpy.CheckOutExtension("Spatial")
+    outname = raster +"_focalrange"
+    outname2 = raster +"_focalstd"
+    # Execute FocalStatistics
+    outFocalStatistics = FocalStatistics(inRaster, neighborhood, "RANGE", "")
+    outFocalStatistics.save(outname)
+    outFocalStatistics = FocalStatistics(inRaster, neighborhood, "STD", "")
+    outFocalStatistics.save(outname2)
+
+----APPROACH 2. BUFFER+ERASE+>5HA+UNION 5HA+30HA+UNION MASK*VALUE
+# buffer 500 m from polygons > 30 ha (to later on select polygons greater than 5 ha close to 300 ha). *****RUNNING FOR SIMPLIFIED POLYGONS*****
+***** MEMORY ERROR
+import arcpy
+arcpy.env.workspace = r"F:\bioraise\enerbioscrub\slope_5m\outfloat\clips\lt35\lt35.gdb"
+featureClasses = arcpy.ListFeatureClasses("polysim*", "All")
+outfolder = r"F:\bioraise\enerbioscrub\slope_5m\outfloat\clips\lt35\lt35.gdb"
+basename = "buf500_"
+for fc in featureClasses:
+	# Buffer areas around sel_1
+	outname = outfolder + "//" + basename + fc
+	buffer_distance = 500
+	distanceField = "Distance"
+	line_side = "OUTSIDE_ONLY"
+	endType = "ROUND"
+	dissolveType = "ALL"
+	arcpy.Buffer_analysis(fc, outname, buffer_distance, line_side, endType, dissolveType)
+
+# erase polygons > 30 ha from buffer to keep only the buffer ring ERASE buffer-original to get only the influence area
+list of original buffers (buff_500) + erase features (>30ha shps ej. polysim_slope_navas_circle_lt35_msk_gt30.shp) 
+polysim_slope_fabero_m_lt35_msk_gt30.shp
+
+import arcpy
+arcpy.env.workspace = r"F:\bioraise\enerbioscrub\slope_5m\outfloat\clips\lt35\lt35.gdb"
+
+import arcpy
+arcpy.env.workspace = r"F:\bioraise\enerbioscrub\slope_5m\outfloat\clips\lt35\lt35.gdb"
+featureClasses = arcpy.ListFeatureClasses("polysim*", "All")
+# For each field in feature class, print the field name, type, and length.
+fields = arcpy.ListFields(r"F:\bioraise\enerbioscrub\slope_5m\outfloat\clips\lt35\lt35.gdb")
+for field in fields:
+    print("{0} is a type of {1} with a length of {2}"
+          .format(field.name, field.type, field.length))
+
+THIS IS MUCH EASIER WITH BATCH PROCESSING BECAUSE IT'S EASIER TO MATCH EACH BUFFER WITH ITS ORIGINAL
+(LEFT BATCH READY TO RUN WHEN BUFFER ENDS 9TH NOVEMBER)
+
+---AFTER ERASE, RUN SELECT > 5 ha within buffer
+PREVIOUS STEP COPY THE OUTPUTS FROM THE BATCH PROCESS
+
+# Import system modules (hay que crear una layer para poder hacer el select by attributes)
+#approach: another selection by attributes where gridcode=1 and save those
+import arcpy
+# Set the workspace
+env.workspace = "F:/bioraise/enerbioscrub/slope_5m/outfloat/circulos_rasters_slope/output_lt35/gt30ha/sel1/erase"
+featureClasses = arcpy.ListFeatureClasses()
+outfolder ="F:/bioraise/enerbioscrub/slope_5m/outfloat/circulos_rasters_slope/output_lt35/gt30ha/sel1/erase"
+basename = "gt5ha_"
+for fc in featureClasses:
+	# Make a layer from the feature class
+	arcpy.MakeFeatureLayer_management(fc, "lyr")
+	arcpy.SelectLayerByAttribute_management("lyr", "NEW_SELECTION", ' "GRIDCODE" = 1 ')
+	outname = outfolder + "//" + basename + fc 
+	arcpy.CopyFeatures_management("lyr", outname)
+
+# select > 5 ha from the erase result
+# union mask (5 ha) + mask (>30 ha) (not needed but just in case)
+# union * slope values (not needed but just in case)
+
