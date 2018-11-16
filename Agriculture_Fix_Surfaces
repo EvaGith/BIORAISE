@@ -1,0 +1,198 @@
+FID_Irriga
+# 1. New surfaces calculation for each row after grid over the agriculture layer
+# calculate hectares of the shape
+import arcpy, os, numpy
+from arcpy import env
+ws = r"EC:\Users\Eva\Desktop\tess\Def_Con costes"
+arcpy.env.workspace = ws
+fcList = arcpy.ListFeatureClasses("*NN.shp","All")
+print fcList
+
+for fc in fcList:
+    arcpy.AddField_management(fc,"ha_NN","Double")
+    expression1 = "{0}".format("!SHAPE.area@HECTARES!")        
+    arcpy.CalculateField_management(fc, "ha_NN", expression1, "PYTHON", )
+
+
+# 2. new field "percent_NN" with the % of surface of real ha of each row from the original surface (total surface of the polygon previous to grid)
+import arcpy, os, numpy
+from arcpy import env
+ws = r"EC:\Users\Eva\Desktop\tess\Def_Con costes"
+arcpy.env.workspace = ws
+fcList = arcpy.ListFeatureClasses("*NN.shp","All")
+#print fcList
+for fc in fcList:
+    name = 'percent_NN'  
+    expression = '!ha_NN!/!ha!'  
+    arcpy.AddField_management(fc, name, "Double","", "", "", name1, "NULLABLE", "NON_REQUIRED", "")
+    arcpy.CalculateField_management(fc, name, expression, "PYTHON_9.3", "")
+
+# 3. New_potential: Multiply the new percent field (percent_NN * old potential biomass)
+import arcpy, os, numpy
+from arcpy import env
+ws = r"EC:\Users\Eva\Desktop\tess\Def_Con costes"
+arcpy.env.workspace = ws
+fcList = arcpy.ListFeatureClasses("*NN.shp","All")
+#print fcList
+for fc in fcList:
+    name = 'Pot_NN'  
+    expression = '!percent_NN!*!tDMpp!'  
+    arcpy.AddField_management(fc, name, "Double","", "", "", name1, "NULLABLE", "NON_REQUIRED", "")
+    arcpy.CalculateField_management(fc, name, expression, "PYTHON_9.3", "")
+
+# 4. New_available: Multiply the new percent field (percent_NN * old available biomass)
+import arcpy, os, numpy
+from arcpy import env
+ws = r"EC:\Users\Eva\Desktop\tess\Def_Con costes"
+arcpy.env.workspace = ws
+fcList = arcpy.ListFeatureClasses("*NN.shp","All")
+#print fcList
+for fc in fcList:
+    name = 'Av_NN'  
+    expression = '!percent_NN!*!tDMdd!'  
+    arcpy.AddField_management(fc, name, "Double","", "", "", name1, "NULLABLE", "NON_REQUIRED", "")
+    arcpy.CalculateField_management(fc, name, expression, "PYTHON_9.3", "")
+
+### BUT IT IS NOT SO SIMPLE BECAUSE IN SOME CASES WE USED CORINE HECTARES FOR THE POTENTIAL BIOMASS COMPUTATIONS AND IN OTHERS THE EUROSTAT SURFACES
+
+## check field names in table
+EUHA = hectares of EUROSTAT table (statistics): value by NUT2
+sumEU = hectares of EUROSTAT by NUT2 (should be equal to EUHA value, but it is obtained by sum of group by Nut2 hectares of EU distributed according to the size of the row = EUROSTATha
+Therefor, some difference is expected (likely due to decimal computations). 
+PCT = PCT_1 (keep only one record): it is the conversion factor between Potential biomass and Available biomass: Av = Pot * PCT
+TDMHA = productivity for the Nut2. Potential biomass is = TDMHA* surface (surface is by row: ha CORINE (now ha_NN) or ha Eurostat (EUROSTATha))
+EUROSTATha = EUSTAT_ha * percent (distribution of EUROSTAT EUHA hectares by NUT2 in each row considering the size of the polygon)
+percent = ha/sumHA is the percent of the row (polygon) over the sum of the hectares by NUT2 (sumHA) for CORINE
+now we should calculate percent_NN = !ha_NN!/sumHA (sumHA should not have changed at all)
+Problem detected: EUHA changes within the same NUT2 in the rice case!!
+
+So far, we can independently compute:
+sumha = sum of ha_NN by NUT2 (running CEDER & at home)
+
+## sumha is the sum of CORINE hectares by nut2. It should be equivalent to sumha_NN
+  # running at home and at CEDER (16th November)
+import os
+import arcpy
+import itertools
+import csv
+import numpy
+folderPath = r"E:\agriculture_fix"
+arcpy.env.workspace=folderPath
+arcpy.env.overwriteOutput = True 
+fcLst = [fc for fc in arcpy.ListFeatureClasses() if not fc.endswith("_drop.shp")]
+for fc in fcLst:
+    arcpy.AddField_management(fc,"sumha_NN","FLOAT","", "", "", "sumha_NN", "NULLABLE", "NON_REQUIRED", "")
+    arcpy.AddField_management(fc,"sumEU_NN","FLOAT","", "", "", "sumEU_NN", "NULLABLE", "NON_REQUIRED", "")
+    expression = "miFunc(!Nut2!, !ha_NN!)"
+    codeblock = """def miFunc(miNut2, miHA):
+        sumHA = numpy.sum([r[0] for r in arcpy.da.SearchCursor(fc,["ha_NN", "Nut2"], where_clause="Nut2 like '" + miNut2 + "'")])   
+        return sumHA
+        """
+    arcpy.CalculateField_management(fc, "sumha_NN", expression, "PYTHON_9.3", codeblock)
+    
+    
+## sumEU requires EUSTATha field, in turn requiring the percent field and the EUSTAT_ha field  
+percent = ha/sumHA is the percent of the row (polygon) over the sum of the hectares by NUT2 (sumHA) for CORINE
+
+## percent code (run after we have finished sumHA/run first in another disk to compare): aunque lo rodamos porque consideramos que sumHA de ahora es igual al de antes (la suma de las hectáreas de CORINE por NUT2 tienen que se las mismas teselizadas o no)
+import arcpy, os, numpy
+from arcpy import env
+ws = r"K:\agriculture_fix"
+arcpy.env.workspace = ws
+fcLst = [fc for fc in arcpy.ListFeatureClasses() if not fc.endswith("_drop.shp")]
+for fc in fcLst:
+    # Convert to numpy array.  "ha_NN" is the field name
+    field = arcpy.da.TableToNumPyArray (fc, "ha_NN", skip_nulls=True)
+    name = 'prcntha_NN'  
+    expression = '!ha_NN!/!sumha!'  
+    arcpy.AddField_management(fc, name, "FLOAT","", "", "", name, "NULLABLE", "NON_REQUIRED", "")
+    arcpy.CalculateField_management(fc, name, expression, "PYTHON_9.3")
+
+## este sería el correcto, si no estuviera ya calculado sumha
+import arcpy, os, numpy
+from arcpy import env
+ws = r"E:\agriculture_fix"
+arcpy.env.workspace = ws
+fcLst = [fc for fc in arcpy.ListFeatureClasses() if not fc.endswith("_drop.shp")]
+for fc in fcLst:
+    # Convert to numpy array.  "ha_NN" is the field name
+    field = arcpy.da.TableToNumPyArray (fc, "ha_NN", skip_nulls=True)
+    expression = "miFunc(!NUTS_ID!,!ha_NN!)"
+    codeblock = """def miFunc(miNut2, miHACORINE_NN):
+        sum0 = [r[0] for r in arcpy.da.SearchCursor(fc,["ha_NN", "NUTS_ID"], where_clause="NUTS_ID like '" + miNut2 + "'")]
+        sumHA = numpy.sum(sum0)
+        return sumHA"""
+    name = 'percentha_NN'  
+    expression = '!ha_NN!/sumHA'  
+    arcpy.AddField_management(fc, name, "FLOAT","", "", "", name, "NULLABLE", "NON_REQUIRED", "")
+    arcpy.CalculateField_management(fc, name, expression, "PYTHON_9.3", codeblock)
+
+
+sumEU = numpy.sum([r[0] for r in arcpy.da.SearchCursor(fc,["EUSTATha", "Nut2"], where_clause="Nut2 like '" + miNut2 + "'")])
+sumEU = sum of EUROSTATha by NUT2 (provided EUROSTATha is ok)
+EUROSTATha = EUSTAT_ha * percent (distribution of EUROSTAT EUHA hectares by NUT2 in each row considering the size of the polygon)##
+
+## after percent, we can recalculate EUROSTATha (Eurostat hectares by NUT2 distributed in each row proportionally to its size (percentha_NN))
+EUROSTATha = EUHA * percent  (running in K: with the names of EUSTha_NN and prcntha_NN
+import arcpy, os, numpy
+from arcpy import env
+ws = r"K:\agriculture_fix"
+arcpy.env.workspace = ws
+fcLst = [fc for fc in arcpy.ListFeatureClasses() if not fc.startswith("Mix*")]
+for fc in fcLst:
+    name = 'EUSTha_NN'  
+    expression = '!prcntha_NN!*!EUHA!' 
+    try:
+        arcpy.AddField_management(fc, name, "FLOAT","", "", "", name, "NULLABLE", "NON_REQUIRED", "")
+        arcpy.CalculateField_management(fc, name, expression, "PYTHON_9.3")
+    except:
+        print fc
+        continue
+    
+## We can now recompute the potential biomass applying a conditional to apply either CORINE/EUROSTAT hectares
+import os
+import arcpy
+import itertools
+import csv
+import numpy
+folderPath = r"K:\agriculture_fix"
+arcpy.env.workspace=folderPath
+arcpy.env.overwriteOutput = True 
+
+fcLst = arcpy.ListFeatureClasses()
+for fc in fcLst:
+    expression = "miFunc(!Nut2!, !TDMHA!, !EUSTha_NN!, !ha_NN!)"
+    codeblock = """def miFunc(miNut2, miTD, miEU, miHA):
+        sumHA = numpy.sum([r[0] for r in arcpy.da.SearchCursor(fc,["ha_NN", "Nut2"], where_clause="Nut2 like '" + miNut2 + "'")])   
+        sumEU = numpy.sum([r[0] for r in arcpy.da.SearchCursor(fc,["EUSTha_NN", "Nut2"], where_clause="Nut2 like '" + miNut2 + "'")])
+        if sumEU > sumHA:
+            return miTD*miHA
+        else:
+            return miTD*miEU
+        """
+    arcpy.AddField_management(fc, "NN_POT", "FLOAT","", "", "", "NN_POT", "NULLABLE", "NON_REQUIRED", "")
+    arcpy.CalculateField_management(fc, "NN_POT", expression, "PYTHON_9.3", codeblock)
+    
+  ## as we already have the sum of hectares for the NUT2 for CORINE and the sum of hectares
+import os
+import arcpy
+import itertools
+import csv
+import numpy
+folderPath = r"K:\agriculture_fix"
+arcpy.env.workspace=folderPath
+arcpy.env.overwriteOutput = True 
+
+fcLst = arcpy.ListFeatureClasses()
+for fc in fcLst:
+    expression = "miFunc(!Nut2!, !TDMHA!, !EUSTha_NN!, !ha_NN!)"
+    codeblock = """def miFunc(miNut2, miTD, miEU, miHA):
+        sumHA = numpy.sum([r[0] for r in arcpy.da.SearchCursor(fc,["ha_NN", "Nut2"], where_clause="Nut2 like '" + miNut2 + "'")])   
+        sumEU = numpy.sum([r[0] for r in arcpy.da.SearchCursor(fc,["EUSTha_NN", "Nut2"], where_clause="Nut2 like '" + miNut2 + "'")])
+        if sumEU > sumHA:
+            return miTD*miHA
+        else:
+            return miTD*miEU
+        """
+    arcpy.AddField_management(fc, "NN_POT", "FLOAT","", "", "", "NN_POT", "NULLABLE", "NON_REQUIRED", "")
+    arcpy.CalculateField_management(fc, "NN_POT", expression, "PYTHON_9.3", codeblock)
