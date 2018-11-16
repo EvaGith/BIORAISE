@@ -402,7 +402,7 @@ for fc in fcs:
     print fc 
     #print field_names
     output = fc[:-4] + "_drop.shp"
-    dropFields = ['FID_Vineya', 'Id', 'FID_Vine_1', 'BDTICM', 'CRFVOL', 'dem', 'slope', 'GlobR', 'NPP', 'OCSTHA30', 'BDRLOG', 'ha', 'EUSTATha', 'tDMp', 'PCT', 'tDMd', 'tDMpp', 'tDMdd', 'tDMpp1', 'cost1', 'cost2', 'cost3','NUTS_ID', 'EUHA', 'TDMHA_1', 'PCT_1', 'percentha', 'distEUha', 'tDMpf', 'tDMdf', 'tDMpf1', 'tDMdf1', 'cost2fix', 'cost1fix', 'costtotfix', 'HAf', 'ha_NN', 'percent_NN', 'tyrd_NN',  'prcntha_NN', 'EUSTha_NN', 'cost1_NN', 'cost2_NN', 'cost3_NN']
+    dropFields = ['FID_Vineya', 'Id', 'FID_Vine_1', 'BDTICM', 'CRFVOL', 'dem', 'slope', 'GlobR', 'NPP', 'OCSTHA30', 'BDRLOG', 'ha', 'EUSTATha', 'tDMp', 'tDMd', 'tDMpp', 'tDMdd', 'tDMpp1', 'cost1', 'cost2', 'cost3','NUTS_ID', 'EUHA', 'TDMHA_1', 'PCT_1', 'percentha', 'distEUha', 'tDMpf', 'tDMdf', 'tDMpf1', 'tDMdf1', 'cost2fix', 'cost1fix', 'costtotfix', 'HAf', 'ha_NN', 'percent_NN', 'tyrd_NN',  'prcntha_NN', 'EUSTha_NN', 'cost1_NN', 'cost2_NN', 'cost3_NN']
     arcpy.CopyFeatures_management(fc, output)
     arcpy.DeleteField_management(output, dropFields)
     
@@ -420,6 +420,6 @@ for fc in fcs:
     print fc 
     #print field_names
     output = fc[:-4] + "_drop.shp"
-    dropFields = ['FID_Mix_fi', 'Id', 'FID_MixCro', 'BDTICM', 'CRFVOL', 'dem', 'slope', 'GlobR', 'NPP', 'OCSTHA30', 'BDRLOG', 'ha', 'EUSTATha',  'tDMp',  'tDMd', 'costtotfix', 'percent_NN', 'prcntha_NN', 'EUSTha_NN','cost1_NN','cost2_NN','cost3_NN']
+    dropFields = ['FID_Mix_fi', 'Id', 'FID_MixCro', 'BDTICM', 'CRFVOL', 'dem', 'slope', 'GlobR', 'NPP', 'OCSTHA30', 'BDRLOG', 'ha', 'EUSTATha',  'tDMp',  'tDMd', 'costtotfix', 'percent_NN', 'prcntha_NN', 'EUSTha_NN','cost1_NN','cost2_NN','cost3_NN','check','check2','check3']
     arcpy.CopyFeatures_management(fc, output)
     arcpy.DeleteField_management(output, dropFields)
