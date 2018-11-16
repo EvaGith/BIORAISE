@@ -626,10 +626,10 @@ arcpy.env.workspace=folderPath
 arcpy.env.overwriteOutput = True 
 fcLst = [fc for fc in arcpy.ListFeatureClasses() if fc.startswith("Mix")]
 for fc in fcLst:
-    expression = !TDMHA! * !ha_NN!
+    expression = "!TDMHA! * !ha_NN!"
     arcpy.AddField_management(fc, "NN_POT", "FLOAT","", "", "", "NN_POT", "NULLABLE", "NON_REQUIRED", "")
     arcpy.CalculateField_management(fc, "NN_POT", expression, "PYTHON_9.3")
-    expression1 = !PCT! * !NN_POT!
+    expression1 = "!PCT! * !NN_POT!"
     arcpy.AddField_management(fc, "NN_AV", "FLOAT","", "", "", "NN_AV", "NULLABLE", "NON_REQUIRED", "")
     arcpy.CalculateField_management(fc, "NN_AV", expression1, "PYTHON_9.3")
     
@@ -654,7 +654,7 @@ for fc in fcLst:
         continue
         
  # Dropfields
- import os
+import os
 import arcpy
 import itertools
 import csv
