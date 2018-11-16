@@ -1,0 +1,425 @@
+## percent code (run after we have finished sumHA/run first in another disk to compare): aunque lo rodamos porque consideramos que sumHA de ahora es igual al de antes (la suma de las hectáreas de CORINE por NUT2 tienen que se las mismas teselizadas o no)
+import arcpy, os, numpy
+from arcpy import env
+ws = r"C:\Users\Eva\Desktop\tess_copy"
+arcpy.env.workspace = ws
+fcLst = [fc for fc in arcpy.ListFeatureClasses() if not fc.endswith("_drop.shp")]
+for fc in fcLst:
+    # Convert to numpy array.  "ha_NN" is the field name
+    field = arcpy.da.TableToNumPyArray (fc, "ha_NN", skip_nulls=True)
+    name = 'prcntha_NN'  
+    expression = '!ha_NN!/!sumha!'  
+    arcpy.AddField_management(fc, name, "FLOAT","", "", "", name, "NULLABLE", "NON_REQUIRED", "")
+    arcpy.CalculateField_management(fc, name, expression, "PYTHON_9.3")
+
+## after percent, we can recalculate EUROSTATha (Eurostat hectares by NUT2 distributed in each row proportionally to its size (percentha_NN))
+import arcpy, os, numpy
+from arcpy import env
+ws = r"C:\Users\Eva\Desktop\tess_copy"
+arcpy.env.workspace = ws
+fcLst = [fc for fc in arcpy.ListFeatureClasses() if not fc.startswith("Mix")]
+for fc in fcLst:
+    name = 'EUSTha_NN'  
+    expression = '!prcntha_NN!*!EUHA!' 
+    try:
+        arcpy.AddField_management(fc, name, "FLOAT","", "", "", name, "NULLABLE", "NON_REQUIRED", "")
+        arcpy.CalculateField_management(fc, name, expression, "PYTHON_9.3")
+    except:
+        print fc
+        continue
+
+### POTENTIAL BIOMASS NEW
+## We can now recompute the potential biomass applying a conditional to apply either CORINE/EUROSTAT hectares    
+  ## as we already have the sum of hectares for the NUT2 for CORINE and the sum of hectares: OK. and it is exactly the same as percent_NN * OLD POTENTIAL
+import os
+import arcpy
+import itertools
+import csv
+import numpy
+folderPath = r"C:\Users\Eva\Desktop\tess_copy"
+arcpy.env.workspace=folderPath
+arcpy.env.overwriteOutput = True 
+
+fcLst = [fc for fc in arcpy.ListFeatureClasses() if not fc.startswith("Mix")]
+for fc in fcLst:
+    expression = "miFunc(!Nut2!, !TDMHA!, !EUSTha_NN!, !ha_NN!, !sumha!, !sumEUha!)"
+    codeblock = """def miFunc(miNut2, miTD, miEU, miHA, miSumaCOR, miSumaEUSTAT):
+        if miSumaEUSTAT > miSumaCOR:
+            return miTD*miHA
+        else:
+            return miTD*miEU
+        """
+    arcpy.AddField_management(fc, "NN_POT", "FLOAT","", "", "", "NN_POT", "NULLABLE", "NON_REQUIRED", "")
+    arcpy.CalculateField_management(fc, "NN_POT", expression, "PYTHON_9.3", codeblock)
+    
+    
+ ## AVAILABLE BIOMASS NEW (ran in K: OK)
+import os
+import arcpy
+import itertools
+arcpy.env.workspace = r"C:\Users\Eva\Desktop\tess_copy"
+fcList = arcpy.ListFeatureClasses()
+fcs = [fc for fc in arcpy.ListFeatureClasses() if not fc.startswith('Mix')]
+for fc in fcs:
+    field_name = 'EUHA' #'HA_EUROSTA'
+    name = 'NN_AV'
+    expression = "miFunc(!NUTS_ID!, !NN_POT!, !PCT!)"
+    codeblock = """def miFunc(miNut2, mipotencial, miconstraint):
+        d = mipotencial * miconstraint
+        return d""" 
+    arcpy.AddField_management(fc, name, "FLOAT","", "", "", name, "NULLABLE", "NON_REQUIRED", "")
+    arcpy.CalculateField_management(fc, name, expression, "PYTHON_9.3", codeblock)
+    
+ ## Now we need the final hectares used in each case (which should be also an easy conversion like NN_percent for ha)
+# HAf_NN
+import os
+import arcpy
+import itertools
+import csv
+folderPath = r"C:\Users\Eva\Desktop\tess_copy"
+arcpy.env.workspace=folderPath
+arcpy.env.overwriteOutput = True 
+
+fcs = [fc for fc in arcpy.ListFeatureClasses() if not fc.startswith('Mix')]
+for fc in fcs:
+    fieldName = "HAf_NN"
+    arcpy.AddField_management(fc,"HAf_NN","FLOAT","", "", "", "HAf_NN", "NULLABLE", "NON_REQUIRED", "") # this will be the final potential resources NEEDS CALCULATEFIELD MANAGEMENT AFTER SOIL LOSS RESTRICTIONS AND CARBON RESTRICTIONS
+    expression = "REALSURF(float(!ha_NN!), float(!EUSTha_NN!),float(!sumha!),float(!sumEUha!))"
+    codeblock = """def REALSURF(valCORha, valEUha, valsumCOR, valsumEU):
+       if (valsumCOR < valsumEU):
+           HAf_NN = valCORha
+           return HAf_NN
+       else: 
+           HAf_NN = valEUha 
+           return HAf_NN"""
+    try:
+        arcpy.CalculateField_management(fc, fieldName, expression, "PYTHON_9.3", codeblock)
+    except:
+        print fc
+        continue
+ 
+ ## COSTS
+ ## COST1 dependent on t/ha available biomass (herbaceous crops)
+import os
+import arcpy
+import itertools
+import csv
+folderPath = r"C:\Users\Eva\Desktop\tess_copy"
+arcpy.env.workspace=folderPath
+arcpy.env.overwriteOutput = True
+fcs = [fc for fc in arcpy.ListFeatureClasses() if fc.endswith('21NN.shp')]
+for fc in fcs:
+    fieldName = "cost1_NN"
+    arcpy.AddField_management(fc,"cost1_NN","FLOAT","", "", "", "cost1_NN", "NULLABLE", "NON_REQUIRED", "") 
+    expression = "CBALE(float(!NN_AV!), float(!HAf_NN!))"
+    codeblock = """def CBALE(valtDMd, valha):
+       if (valtDMd == 0):
+           cost1_NN = 0
+           return cost1_NN
+       elif (valtDMd < 0.8):
+           cost1_NN = 40 * (0.8**-0.7)
+           return cost1_NN
+       elif (valtDMd < 14):
+           cost1_NN= 40 * ((valtDMd/valha)**-0.7)
+           return cost1_NN
+       else:
+           cost1_NN = 40 * (14**-0.7)
+           return cost1_NN"""
+    try:
+        arcpy.CalculateField_management(fc, fieldName, expression, "PYTHON_9.3", codeblock)
+    except:
+        print fc
+        continue
+ 
+ ## COST2
+ ## columna con coste2 fijo 8.9
+import os
+import arcpy
+import itertools
+import csv
+folderPath = r"C:\Users\Eva\Desktop\tess_copy"
+arcpy.env.workspace=folderPath
+arcpy.env.overwriteOutput = True
+fcs = [fc for fc in arcpy.ListFeatureClasses() if fc.endswith('21NN.shp')]
+for fc in fcs:
+    fieldName = "cost2_NN"
+    arcpy.AddField_management(fc,"cost2_NN","FLOAT","", "", "", "cost2_NN", "NULLABLE", "NON_REQUIRED", "") # this will be the final potential resources NEEDS CALCULATEFIELD MANAGEMENT AFTER SOIL LOSS RESTRICTIONS AND CARBON RESTRICTIONS
+    expression = "COST2FIX(float(!NN_AV!))"
+    codeblock = """def COST2FIX(valtDMdd):
+       if (valtDMdd == 0):
+           cost2_NN = 0
+           return cost2_NN
+       else: 
+           cost2_NN = 8.9 
+           return cost2_NN"""
+    try:
+        arcpy.CalculateField_management(fc, fieldName, expression, "PYTHON_9.3", codeblock)
+    except:
+        print fc
+        continue
+
+## COST 3 = cost1 + cost2
+## total cost: cost3
+import os
+import arcpy
+import itertools
+import csv
+folderPath = r"C:\Users\Eva\Desktop\tess_copy"
+arcpy.env.workspace=folderPath
+arcpy.env.overwriteOutput = True
+fcs = [fc for fc in arcpy.ListFeatureClasses() if fc.endswith('21NN.shp')]
+for fc in fcs:
+    fieldName = "cost3_NN"
+    arcpy.AddField_management(fc,"cost3_NN","FLOAT","", "", "", "cost3_NN", "NULLABLE", "NON_REQUIRED", "") # this will be the final potential resources NEEDS CALCULATEFIELD MANAGEMENT AFTER SOIL LOSS RESTRICTIONS AND CARBON RESTRICTIONS
+    expression = "(float(!cost1_NN!) + float(!cost2_NN!))"
+    try:
+        arcpy.CalculateField_management(fc, fieldName, expression, "PYTHON_9.3")
+    except:
+        print fc
+        continue
+
+## costs for non herbaceous crops for 221 Vineyard, 222 Orchards, 223  Olive CORINE CODES:
+import os
+import arcpy
+import itertools
+import csv
+folderPath = r"C:\Users\Eva\Desktop\tess_copy"
+arcpy.env.workspace=folderPath
+arcpy.env.overwriteOutput = True
+fcs = [fc for fc in arcpy.ListFeatureClasses() if fc.startswith("Vineyard")]
+for fc in fcs:
+    fieldName = "costfix_NN"
+    arcpy.AddField_management(fc,"costfix_NN","FLOAT","", "", "", "costfix_NN", "NULLABLE", "NON_REQUIRED", "") # this will be the final potential resources NEEDS CALCULATEFIELD MANAGEMENT AFTER SOIL LOSS RESTRICTIONS AND CARBON RESTRICTIONS
+    expression = "COST2FIX(float(!NN_AV!))"
+    codeblock = """def COST2FIX(valtDMdd):
+       if (valtDMdd == 0):
+           costfix_NN = 0
+           return costfix_NN
+       else: 
+           costfix_NN = 47   ### CHANGE THIS BIT FOR VINEYARD
+           return costfix_NN"""
+    try:
+        arcpy.CalculateField_management(fc, fieldName, expression, "PYTHON_9.3", codeblock)
+    except:
+        print fc
+        continue
+
+
+import os
+import arcpy
+import itertools
+import csv
+folderPath = r"C:\Users\Eva\Desktop\tess_copy"
+arcpy.env.workspace=folderPath
+arcpy.env.overwriteOutput = True
+fcs = [fc for fc in arcpy.ListFeatureClasses() if fc.startswith("Olive")]
+for fc in fcs:
+    fieldName = "costfix_NN"
+    arcpy.AddField_management(fc,"costfix_NN","FLOAT","", "", "", "costfix_NN", "NULLABLE", "NON_REQUIRED", "") # this will be the final potential resources NEEDS CALCULATEFIELD MANAGEMENT AFTER SOIL LOSS RESTRICTIONS AND CARBON RESTRICTIONS
+    expression = "COST2FIX(float(!NN_AV!))"
+    codeblock = """def COST2FIX(valtDMdd):
+       if (valtDMdd == 0):
+           costfix_NN = 0
+           return costfix_NN
+       else: 
+           costfix_NN = 38   ### CHANGE THIS BIT FOR OLIVE
+           return costfix_NN"""
+    try:
+        arcpy.CalculateField_management(fc, fieldName, expression, "PYTHON_9.3", codeblock)
+    except:
+        print fc
+        continue
+
+import os
+import arcpy
+import itertools
+import csv
+folderPath = r"C:\Users\Eva\Desktop\tess_copy"
+arcpy.env.workspace=folderPath
+arcpy.env.overwriteOutput = True
+fcs = [fc for fc in arcpy.ListFeatureClasses() if fc.startswith("Orchard")]
+for fc in fcs:
+    fieldName = "costfix_NN"
+    arcpy.AddField_management(fc,"costfix_NN","FLOAT","", "", "", "costfix_NN", "NULLABLE", "NON_REQUIRED", "") # this will be the final potential resources NEEDS CALCULATEFIELD MANAGEMENT AFTER SOIL LOSS RESTRICTIONS AND CARBON RESTRICTIONS
+    expression = "COST2FIX(float(!NN_AV!))"
+    codeblock = """def COST2FIX(valtDMdd):
+       if (valtDMdd == 0):
+           costfix_NN = 0
+           return costfix_NN
+       else: 
+           costfix_NN = 50   ### CHANGE THIS BIT FOR VINEYARD
+           return costfix_NN"""
+    try:
+        arcpy.CalculateField_management(fc, fieldName, expression, "PYTHON_9.3", codeblock)
+    except:
+        print fc
+        continue
+
+### 241 POTENTIAL/AVAILABLE/COSTS
+# directly apply TDMA * ha CORINE 
+import os
+import arcpy
+import itertools
+import csv
+import numpy
+folderPath = r"C:\Users\Eva\Desktop\tess_copy"
+arcpy.env.workspace=folderPath
+arcpy.env.overwriteOutput = True 
+fcLst = [fc for fc in arcpy.ListFeatureClasses() if fc.startswith("Mix")]
+for fc in fcLst:
+    expression = "!TDMHA! * !ha_NN!"
+    arcpy.AddField_management(fc, "NN_POT", "FLOAT","", "", "", "NN_POT", "NULLABLE", "NON_REQUIRED", "")
+    arcpy.CalculateField_management(fc, "NN_POT", expression, "PYTHON_9.3")
+    expression1 = "!PCT! * !NN_POT!"
+    arcpy.AddField_management(fc, "NN_AV", "FLOAT","", "", "", "NN_AV", "NULLABLE", "NON_REQUIRED", "")
+    arcpy.CalculateField_management(fc, "NN_AV", expression1, "PYTHON_9.3")
+    
+# costs
+## COSTfix
+ ## columna con coste2 fijo 8.9
+import os
+import arcpy
+import itertools
+import csv
+folderPath = r"C:\Users\Eva\Desktop\tess_copy"
+arcpy.env.workspace=folderPath
+arcpy.env.overwriteOutput = True
+fcs = [fc for fc in arcpy.ListFeatureClasses() if fc.startswith("Mix")]
+for fc in fcs:
+    fieldName = "costfix_NN"
+    arcpy.AddField_management(fc,"costfix_NN","FLOAT","", "", "", "costfix_NN", "NULLABLE", "NON_REQUIRED", "") # this will be the final potential resources NEEDS CALCULATEFIELD MANAGEMENT AFTER SOIL LOSS RESTRICTIONS AND CARBON RESTRICTIONS
+    expression = "COST2FIX(float(!NN_AV!))"
+    codeblock = """def COST2FIX(valtDMdd):
+       if (valtDMdd == 0):
+           costfix_NN = 0
+           return costfix_NN
+       else: 
+           costfix_NN = 45 
+           return costfix_NN"""
+    try:
+        arcpy.CalculateField_management(fc, fieldName, expression, "PYTHON_9.3", codeblock)
+    except:
+        print fc
+        continue
+
+### DROPFIELDS
+### drop fields
+import os
+import arcpy
+import itertools
+import csv
+folderPath = r"C:\Users\Eva\Desktop\tess_copy"
+arcpy.env.workspace=folderPath
+arcpy.env.overwriteOutput = True
+fcs = [fc for fc in arcpy.ListFeatureClasses() if fc.startswith('Irrig')]
+for fc in fcs:
+    field_names = [f.name for f in arcpy.ListFields(fc)]
+    print fc 
+    #print field_names
+    output = fc[:-4] + "_drop.shp"
+    dropFields = ['FID_Irriga', 'BDTICM', 'CRFVOL', 'dem', 'slope', 'GlobR', 'NPP', 'OCSTHA30', 'BDRLOG', 'ha', 'EUSTATha',  'tDMp', 'tDMd', 'tDMpp', 'tDMdd', 'cost1', 'cost1tDM', 'cost2', 'cost3', 'tDMpp1', 'sumaHa', 'NUTS_ID', 'TDMHA_1', 'PCT_1', 'percentha', 'distEUha', 'tDMpf', 'tDMdf', 'tDMpf1', 'tDMdf1', 'cost2fix', 'cost3fix', 'HAf', 'FID_Irri_1', 'Id', 'ha_NN', 'percent_NN', 'tyrd_NN', 'sumha_NN', 'sumEU_NN', 'F_ha_NN', 'prcntha_NN', 'EUSTha_NN']
+    arcpy.CopyFeatures_management(fc, output)
+    arcpy.DeleteField_management(output, dropFields)
+    
+import os
+import arcpy
+import itertools
+import csv
+folderPath = r"C:\Users\Eva\Desktop\tess_copy"
+arcpy.env.workspace=folderPath
+arcpy.env.overwriteOutput = True
+fcs = [fc for fc in arcpy.ListFeatureClasses()if fc.startswith('Olive')]
+for fc in fcs:
+    field_names = [f.name for f in arcpy.ListFields(fc)]
+    print fc 
+    #print field_names
+    output = fc[:-4] + "_drop.shp"
+    dropFields = ['FID_Olive_', 'Id', 'FID_Olive1', 'BDTICM', 'CRFVOL', 'dem', 'slope', 'GlobR', 'NPP', 'OCSTHA30', 'BDRLOG', 'ha', 'EUSTATha', 'tDMp','tDMd', 'tDMpp', 'tDMdd', 'tDMpp1', 'cost1', 'cost2', 'cost3', 'NUTS_ID', 'TDMHA_1', 'PCT_1', 'percentha', 'distEUha', 'tDMpf', 'tDMdf', 'tDMpf1', 'tDMdf1', 'cost2fix', 'cost1fix', 'costtotfix', 'HAf', 'ha_NN', 'percent_NN',  'tyrd_NN', 'prcntha_NN', 'EUSTha_NN', 'cost1_NN', 'cost2_NN', 'cost3_NN']
+    arcpy.CopyFeatures_management(fc, output)
+    arcpy.DeleteField_management(output, dropFields)
+    
+import os
+import arcpy
+import itertools
+import csv
+folderPath = r"C:\Users\Eva\Desktop\tess_copy"
+arcpy.env.workspace=folderPath
+arcpy.env.overwriteOutput = True
+fcs = [fc for fc in arcpy.ListFeatureClasses()if fc.startswith('Orchard')]
+for fc in fcs:
+    field_names = [f.name for f in arcpy.ListFields(fc)]
+    print fc 
+    #print field_names
+    output = fc[:-4] + "_drop.shp"
+    dropFields = ['FID_Orchar', 'Id', 'FID_Orch_1', 'BDTICM', 'CRFVOL', 'dem', 'slope', 'GlobR', 'NPP', 'OCSTHA30', 'BDRLOG', 'ha', 'EUSTATha', 'tDMp',  'tDMd', 'tDMpp', 'tDMdd', 'tDMpp1', 'cost1', 'cost2', 'cost3', 'NUTS_ID', 'TDMHA_1', 'PCT_1', 'percentha', 'distEUha', 'tDMpf', 'tDMdf', 'tDMpf1', 'tDMdf1', 'cost2fix', 'cost1fix', 'costtotfix', 'HAf', 'ha_NN', 'percent_NN',  'tyrd_NN',  'prcntha_NN', 'EUSTha_NN', 'cost1_NN','cost2_NN','cost3_NN']
+    arcpy.CopyFeatures_management(fc, output)
+    arcpy.DeleteField_management(output, dropFields)
+    
+import os
+import arcpy
+import itertools
+import csv
+folderPath = r"C:\Users\Eva\Desktop\tess_copy"
+arcpy.env.workspace=folderPath
+arcpy.env.overwriteOutput = True
+fcs = [fc for fc in arcpy.ListFeatureClasses()if fc.startswith('Rainfed')]
+for fc in fcs:
+    field_names = [f.name for f in arcpy.ListFields(fc)]
+    print fc 
+    #print field_names
+    output = fc[:-4] + "_drop.shp"
+    dropFields = ['FID_Rainfe', 'Id', 'FID_Rain_1', 'BDTICM', 'CRFVOL', 'dem', 'slope', 'GlobR', 'NPP', 'OCSTHA30', 'BDRLOG', 'ha', 'EUSTATha','tDMp', 'tDMd', 'tDMpp', 'tDMdd', 'cost1', 'cost1tDM', 'cost2', 'cost3', 'tDMpp1', 'TDMHA_1', 'PCT_1', 'NUTS_ID', 'percentha', 'distEUha', 'tDMpf', 'tDMdf', 'tDMpf1', 'tDMdf1', 'cost2fix', 'cost3fix', 'HAf', 'ha_NN', 'percent_NN', 'tyrd_NN', 'prcntha_NN', 'EUSTha_NN']
+    arcpy.CopyFeatures_management(fc, output)
+    arcpy.DeleteField_management(output, dropFields)
+
+import os
+import arcpy
+import itertools
+import csv
+folderPath = r"C:\Users\Eva\Desktop\tess_copy"
+arcpy.env.workspace=folderPath
+arcpy.env.overwriteOutput = True
+fcs = [fc for fc in arcpy.ListFeatureClasses()if fc.startswith('Rice')]
+for fc in fcs:
+    field_names = [f.name for f in arcpy.ListFields(fc)]
+    print fc 
+    #print field_names
+    output = fc[:-4] + "_drop.shp"
+    dropFields = ['FID_Rice_f', 'Id', 'FID_Rice_2', 'BDTICM', 'CRFVOL', 'dem', 'slope', 'GlobR', 'NPP', 'OCSTHA30', 'BDRLOG', 'ha', 'EUSTATha',  'tDMp',  'tDMd', 'tDMpp', 'tDMdd', 'cost1', 'cost1tDM', 'cost2', 'cost3', 'tDMpp1',  'NUTS_ID', 'EUHA', 'TDMHA_1', 'PCT_1', 'percentha', 'distEUha', 'tDMpf', 'tDMdf', 'tDMpf1', 'tDMdf1', 'cost2fix', 'cost3fix', 'HAf', 'ha_NN', 'percent_NN', 'tyrd_NN',  'prcntha_NN', 'EUSTha_NN']
+    arcpy.CopyFeatures_management(fc, output)
+    arcpy.DeleteField_management(output, dropFields)
+
+import os
+import arcpy
+import itertools
+import csv
+folderPath = r"C:\Users\Eva\Desktop\tess_copy"
+arcpy.env.workspace=folderPath
+arcpy.env.overwriteOutput = True
+fcs = [fc for fc in arcpy.ListFeatureClasses()if fc.startswith('Vineyard')]
+for fc in fcs:
+    field_names = [f.name for f in arcpy.ListFields(fc)]
+    print fc 
+    #print field_names
+    output = fc[:-4] + "_drop.shp"
+    dropFields = ['FID_Vineya', 'Id', 'FID_Vine_1', 'BDTICM', 'CRFVOL', 'dem', 'slope', 'GlobR', 'NPP', 'OCSTHA30', 'BDRLOG', 'ha', 'EUSTATha', 'tDMp', 'PCT', 'tDMd', 'tDMpp', 'tDMdd', 'tDMpp1', 'cost1', 'cost2', 'cost3','NUTS_ID', 'EUHA', 'TDMHA_1', 'PCT_1', 'percentha', 'distEUha', 'tDMpf', 'tDMdf', 'tDMpf1', 'tDMdf1', 'cost2fix', 'cost1fix', 'costtotfix', 'HAf', 'ha_NN', 'percent_NN', 'tyrd_NN',  'prcntha_NN', 'EUSTha_NN', 'cost1_NN', 'cost2_NN', 'cost3_NN']
+    arcpy.CopyFeatures_management(fc, output)
+    arcpy.DeleteField_management(output, dropFields)
+    
+ # Dropfields
+import os
+import arcpy
+import itertools
+import csv
+folderPath = r"C:\Users\Eva\Desktop\tess_copy"
+arcpy.env.workspace=folderPath
+arcpy.env.overwriteOutput = True
+fcs = [fc for fc in arcpy.ListFeatureClasses()if fc.startswith('Mix')]
+for fc in fcs:
+    field_names = [f.name for f in arcpy.ListFields(fc)]
+    print fc 
+    #print field_names
+    output = fc[:-4] + "_drop.shp"
+    dropFields = ['FID_Mix_fi', 'Id', 'FID_MixCro', 'BDTICM', 'CRFVOL', 'dem', 'slope', 'GlobR', 'NPP', 'OCSTHA30', 'BDRLOG', 'ha', 'EUSTATha',  'tDMp',  'tDMd', 'costtotfix', 'percent_NN', 'prcntha_NN', 'EUSTha_NN','cost1_NN','cost2_NN','cost3_NN']
+    arcpy.CopyFeatures_management(fc, output)
+    arcpy.DeleteField_management(output, dropFields)
