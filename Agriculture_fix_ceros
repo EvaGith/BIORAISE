@@ -1,7 +1,8 @@
 ##
 import arcpy
 import os
-arcpy.env.workspace = r"C:\Users\Eva\Desktop\tess_copy\copy"
+#arcpy.env.workspace = r"C:\Users\Eva\Desktop\tess_copy\copy"
+arcpy.env.workspace = r"C:\Users\Eva\Desktop\tess_copy\copy\tdmha_NEW"
 fcList = arcpy.ListFeatureClasses()
 for fc in fcList:
     arcpy.CheckOutExtension("Spatial")
@@ -12,9 +13,10 @@ for fc in fcList:
 ## percent code (run after we have finished sumHA/run first in another disk to compare): aunque lo rodamos porque consideramos que sumHA de ahora es igual al de antes (la suma de las hectáreas de CORINE por NUT2 tienen que se las mismas teselizadas o no)
 import arcpy, os, numpy
 from arcpy import env
-ws = r"C:\Users\Eva\Desktop\tess_copy\copy"
-arcpy.env.workspace = ws
-fcLst = [fc for fc in arcpy.ListFeatureClasses() if not fc.endswith("_drop.shp")]
+#ws = r"C:\Users\Eva\Desktop\tess_copy\copy"
+arcpy.env.workspace = r"C:\Users\Eva\Desktop\tess_copy\copy\tdmha_NEW"
+#arcpy.env.workspace = ws
+fcList = arcpy.ListFeatureClasses()
 for fc in fcLst:
     # Convert to numpy array.  "ha_NN" is the field name
     field = arcpy.da.TableToNumPyArray (fc, "ha_NN", skip_nulls=True)
@@ -63,6 +65,89 @@ for fc in fcLst:
         print fc
         continue
 
+## weigh TDMHA 
+import os
+import arcpy
+import itertools
+import csv
+import numpy
+folderPath = r"C:\Users\Eva\Desktop\tess_copy\copy"
+arcpy.env.workspace=folderPath
+arcpy.env.overwriteOutput = True
+fcLst = [fc for fc in arcpy.ListFeatureClasses() if not fc.startswith("Mix")]
+for fc in fcLst:
+    name = "sumTDMhaNN"
+    arcpy.AddField_management(fc, name, "FLOAT","", "", "", name, "NULLABLE", "NON_REQUIRED", "")
+    expression = "miFunc(!Nut2!, !TDMhaNN!)"
+    codeblock = """def miFunc(miNut2, miTDNN):
+        sumTDMhaNN = numpy.sum([r[0] for r in arcpy.da.SearchCursor(fc,["TDMhaNN", "Nut2"], where_clause="Nut2 like '" + miNut2 + "'")])  
+        return sumTDMhaNN
+        """
+    arcpy.CalculateField_management(fc, "sumTDMhaNN", expression, "PYTHON_9.3", codeblock)
+
+import os
+import arcpy
+import itertools
+import csv
+import numpy
+folderPath = r"C:\Users\Eva\Desktop\tess_copy\copy"
+arcpy.env.workspace=folderPath
+arcpy.env.overwriteOutput = True
+fcLst = [fc for fc in arcpy.ListFeatureClasses() if not fc.startswith("Mix")]
+for fc in fcLst:
+    name = "sumhaNN"
+    arcpy.AddField_management(fc, name, "FLOAT","", "", "", name, "NULLABLE", "NON_REQUIRED", "")
+    expression = "miFunc(!Nut2!, !ha_NN!)"
+    codeblock = """def miFunc(miNut2, miTDNN):
+        sumhaNN = numpy.sum([r[0] for r in arcpy.da.SearchCursor(fc,["ha_NN", "Nut2"], where_clause="Nut2 like '" + miNut2 + "'")])  
+        return sumhaNN
+        """
+    arcpy.CalculateField_management(fc, "sumhaNN", expression, "PYTHON_9.3", codeblock)
+    
+import os
+import arcpy
+import itertools
+import csv
+import numpy
+folderPath = r"C:\Users\Eva\Desktop\tess_copy\copy"
+arcpy.env.workspace=folderPath
+arcpy.env.overwriteOutput = True
+fcLst = [fc for fc in arcpy.ListFeatureClasses() if not fc.startswith("Mix")]
+for fc in fcLst:
+    name = "sumhaNN"
+    arcpy.AddField_management(fc, name, "FLOAT","", "", "", name, "NULLABLE", "NON_REQUIRED", "")
+    expression = "miFunc(!Nut2!, !ha_NN!)"
+    codeblock = """def miFunc(miNut2, miTDNN):
+        sumhaNN = numpy.sum([r[0] for r in arcpy.da.SearchCursor(fc,["ha_NN", "Nut2"], where_clause="Nut2 like '" + miNut2 + "'")])  
+        return sumhaNN
+        """
+    arcpy.CalculateField_management(fc, "sumhaNN", expression, "PYTHON_9.3", codeblock)
+
+## we have to create the new TDMHA_NN
+import os
+import arcpy
+import itertools
+import csv
+import numpy
+folderPath = r"C:\Users\Eva\Desktop\tess_copy\copy"
+arcpy.env.workspace=folderPath
+arcpy.env.overwriteOutput = True 
+fcLst = [fc for fc in arcpy.ListFeatureClasses() if not fc.startswith("Mix")]
+for fc in fcLst:
+    expression = "miFunc(!COUNTRY!, !TDMHA!)"
+    codeblock = """def miFunc(miCountry, miTDMHA):
+        if miTDMHA > 0:
+            return miTDMHA
+        else:
+            meanTD = numpy.mean([r[0] for r in arcpy.da.SearchCursor(fc,["TDMHA", "COUNTRY"], where_clause="COUNTRY like '" + miCountry + "'")])  
+            return meanTD"""
+    try: 
+        arcpy.AddField_management(fc, "NN_TDMHA", "FLOAT","", "", "", "NN_TDMHA", "NULLABLE", "NON_REQUIRED", "")
+        arcpy.CalculateField_management(fc, "NN_TDMHA", expression, "PYTHON_9.3", codeblock)
+    except:
+        print fc
+        continue
+        
 ### POTENTIAL BIOMASS NEW
 ## We can now recompute the potential biomass applying a conditional to apply either CORINE/EUROSTAT hectares    
   ## as we already have the sum of hectares for the NUT2 for CORINE and the sum of hectares: OK. and it is exactly the same as percent_NN * OLD POTENTIAL
@@ -80,7 +165,7 @@ for fc in fcLst:
     codeblock = """def miFunc(miNut2, miTD, miEU, miHA, miSumaCOR, miSumaEUSTAT):
         if miSumaEUSTAT > miSumaCOR:
             return miTD*miHA
-        elif miSumaEUSTAT < miSumaCOR and miSumaEUSTAT =! 0:
+        elif miSumaEUSTAT < miSumaCOR and miSumaEUSTAT > 0:
             return miTD*miEU
         else:
             return miTD*miHA
