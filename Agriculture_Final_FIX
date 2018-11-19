@@ -42,7 +42,7 @@ arcpy.env.overwriteOutput = True
 
 fcLst = [fc for fc in arcpy.ListFeatureClasses() if not fc.startswith("Mix")]
 for fc in fcLst:
-    expression = "miFunc(!Nut2!, !TDMHA!, !EUSTha_NN!, !ha_NN!, !sumha!, !sumEUha!)"
+    expression = "miFunc(!Nut2!, !TDMHA_NN!, !EUSTha_NN!, !ha_NN!, !sumha!, !sumEUha!)"
     codeblock = """def miFunc(miNut2, miTD, miEU, miHA, miSumaCOR, miSumaEUSTAT):
         if miSumaEUSTAT > miSumaCOR:
             return miTD*miHA
