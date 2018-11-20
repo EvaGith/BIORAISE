@@ -52,6 +52,8 @@ for fc in fcList:
     expression = '!percent_NN!*!tDMdd!'  
     arcpy.AddField_management(fc, name, "Double","", "", "", name1, "NULLABLE", "NON_REQUIRED", "")
     arcpy.CalculateField_management(fc, name, expression, "PYTHON_9.3", "")
+    
+##
 
 ### BUT IT IS NOT SO SIMPLE BECAUSE IN SOME CASES WE USED CORINE HECTARES FOR THE POTENTIAL BIOMASS COMPUTATIONS AND IN OTHERS THE EUROSTAT SURFACES
 
@@ -141,7 +143,7 @@ arcpy.env.workspace = ws
 fcLst = [fc for fc in arcpy.ListFeatureClasses() if not fc.startswith("Mix")]
 for fc in fcLst:
     name = 'EUSTha_NN'  
-    expression = '!prcntha_NN!*!EUHA!' 
+    expression = '!prcntha_NN!*!EUHA!'  ##
     try:
         arcpy.AddField_management(fc, name, "FLOAT","", "", "", name, "NULLABLE", "NON_REQUIRED", "")
         arcpy.CalculateField_management(fc, name, expression, "PYTHON_9.3")
@@ -324,8 +326,7 @@ for fc in fcs:
 
 ## costs for non herbaceous crops for 221 Vineyard, 222 Orchards, 223  Olive CORINE CODES:
 
-221 ## costs for 211,212,213 cost1 = €/tDM available
-
+221 ## costs for 211,212,213 cost1 = €/tDM available    
 import os
 import arcpy
 import itertools
@@ -335,72 +336,23 @@ arcpy.env.workspace=folderPath
 arcpy.env.overwriteOutput = True
 fcs = [fc for fc in arcpy.ListFeatureClasses() if fc.startswith('Vineyard')]
 for fc in fcs:
-    fieldName = "cost1_NN"
-    arcpy.AddField_management(fc,"cost1_NN","FLOAT","", "", "", "cost1_NN", "NULLABLE", "NON_REQUIRED", "") # this will be the final potential resources NEEDS CALCULATEFIELD MANAGEMENT AFTER SOIL LOSS RESTRICTIONS AND CARBON RESTRICTIONS
-    expression = "(32* float(!NN_AV!))"
+    fieldName = "costfix_NN"
+    arcpy.AddField_management(fc,"costfix_NN","FLOAT","", "", "", "costfix_NN", "NULLABLE", "NON_REQUIRED", "") # this will be the final potential resources NEEDS CALCULATEFIELD MANAGEMENT AFTER SOIL LOSS RESTRICTIONS AND CARBON RESTRICTIONS
+    expression = "COST2FIX(float(!NN_AV!))"
+    codeblock = """def COST2FIX(valtDMdd):
+       if (valtDMdd == 0):
+           costfix_NN = 0
+           return costfix_NN
+       else: 
+           costfix_NN = 47 
+           return costfix_NN"""
     try:
-        arcpy.CalculateField_management(fc, fieldName, expression, "PYTHON_9.3")
-    except:
-        print fc
-        continue
-    
-import os
-import arcpy
-import itertools
-import csv
-folderPath = r"K:\agriculture_fix"
-arcpy.env.workspace=folderPath
-arcpy.env.overwriteOutput = True
-fcs = [fc for fc in arcpy.ListFeatureClasses() if fc.startswith('Vineyard')]
-for fc in fcs:
-    fieldName = "cost2_NN"
-    arcpy.AddField_management(fc,"cost2_NN","FLOAT","", "", "", "cost2_NN", "NULLABLE", "NON_REQUIRED", "") # this will be the final potential resources NEEDS CALCULATEFIELD MANAGEMENT AFTER SOIL LOSS RESTRICTIONS AND CARBON RESTRICTIONS
-    expression = "(15* float(!NN_AV!))"
-    try:
-        arcpy.CalculateField_management(fc, fieldName, expression, "PYTHON_9.3")
-    except:
-        print fc
-        continue
-
-## total cost: cost3
-import os
-import arcpy
-import itertools
-import csv
-folderPath = r"K:\agriculture_fix"
-arcpy.env.workspace=folderPath
-arcpy.env.overwriteOutput = True
-fcs = [fc for fc in arcpy.ListFeatureClasses() if fc.startswith('Vineyard')]
-for fc in fcs:
-    fieldName = "cost3_NN"
-    arcpy.AddField_management(fc,"cost3_NN","FLOAT","", "", "", "cost3_NN", "NULLABLE", "NON_REQUIRED", "") # this will be the final potential resources NEEDS CALCULATEFIELD MANAGEMENT AFTER SOIL LOSS RESTRICTIONS AND CARBON RESTRICTIONS
-    expression = "(float(!cost1_NN!) + float(!cost2_NN!))"
-    try:
-        arcpy.CalculateField_management(fc, fieldName, expression, "PYTHON_9.3")
+        arcpy.CalculateField_management(fc, fieldName, expression, "PYTHON_9.3", codeblock)
     except:
         print fc
         continue
 
 #222 Orchards
-
-import os
-import arcpy
-import itertools
-import csv
-folderPath = r"K:\agriculture_fix"
-arcpy.env.workspace=folderPath
-arcpy.env.overwriteOutput = True
-fcs = [fc for fc in arcpy.ListFeatureClasses() if fc.startswith('Orchards')]
-for fc in fcs:
-    fieldName = "cost1_NN"
-    arcpy.AddField_management(fc,"cost1_NN","FLOAT","", "", "", "cost1_NN", "NULLABLE", "NON_REQUIRED", "") # this will be the final potential resources NEEDS CALCULATEFIELD MANAGEMENT AFTER SOIL LOSS RESTRICTIONS AND CARBON RESTRICTIONS
-    expression = "(37* float(!NN_AV!))"
-    try:
-        arcpy.CalculateField_management(fc, fieldName, expression, "PYTHON_9.3")
-    except:
-        print fc
-        continue
-    
 import os
 import arcpy
 import itertools
@@ -410,35 +362,23 @@ arcpy.env.workspace=folderPath
 arcpy.env.overwriteOutput = True
 fcs = [fc for fc in arcpy.ListFeatureClasses() if fc.startswith('Orchard')]
 for fc in fcs:
-    fieldName = "cost2_NN"
-    arcpy.AddField_management(fc,"cost2_NN","FLOAT","", "", "", "cost2_NN", "NULLABLE", "NON_REQUIRED", "") # this will be the final potential resources NEEDS CALCULATEFIELD MANAGEMENT AFTER SOIL LOSS RESTRICTIONS AND CARBON RESTRICTIONS
-    expression = "(13* float(!NN_AV!))"
+    fieldName = "costfix_NN"
+    arcpy.AddField_management(fc,"costfix_NN","FLOAT","", "", "", "costfix_NN", "NULLABLE", "NON_REQUIRED", "") # this will be the final potential resources NEEDS CALCULATEFIELD MANAGEMENT AFTER SOIL LOSS RESTRICTIONS AND CARBON RESTRICTIONS
+    expression = "COST2FIX(float(!NN_AV!))"
+    codeblock = """def COST2FIX(valtDMdd):
+       if (valtDMdd == 0):
+           costfix_NN = 0
+           return costfix_NN
+       else: 
+           costfix_NN = 50 
+           return costfix_NN"""
     try:
-        arcpy.CalculateField_management(fc, fieldName, expression, "PYTHON_9.3")
+        arcpy.CalculateField_management(fc, fieldName, expression, "PYTHON_9.3", codeblock)
     except:
         print fc
         continue
-
-## total cost: cost3
-import os
-import arcpy
-import itertools
-import csv
-folderPath = r"K:\agriculture_fix"
-arcpy.env.workspace=folderPath
-arcpy.env.overwriteOutput = True
-fcs = [fc for fc in arcpy.ListFeatureClasses() if fc.startswith('Orchard')]
-for fc in fcs:
-    fieldName = "cost3_NN"
-    arcpy.AddField_management(fc,"cost3_NN","FLOAT","", "", "", "cost3_NN", "NULLABLE", "NON_REQUIRED", "") # this will be the final potential resources NEEDS CALCULATEFIELD MANAGEMENT AFTER SOIL LOSS RESTRICTIONS AND CARBON RESTRICTIONS
-    expression = "(float(!cost1_NN!) + float(!cost2_NN!))"
-    try:
-        arcpy.CalculateField_management(fc, fieldName, expression, "PYTHON_9.3")
-    except:
-        print fc
-        continue
-
-# 223 Olive
+        
+### 223 Olive
 import os
 import arcpy
 import itertools
@@ -448,48 +388,18 @@ arcpy.env.workspace=folderPath
 arcpy.env.overwriteOutput = True
 fcs = [fc for fc in arcpy.ListFeatureClasses() if fc.startswith('Olive')]
 for fc in fcs:
-    fieldName = "cost1_NN"
-    arcpy.AddField_management(fc,"cost1_NN","FLOAT","", "", "", "cost1_NN", "NULLABLE", "NON_REQUIRED", "") # this will be the final potential resources NEEDS CALCULATEFIELD MANAGEMENT AFTER SOIL LOSS RESTRICTIONS AND CARBON RESTRICTIONS
-    expression = "(25* float(!NN_AV!))"
+    fieldName = "costfix_NN"
+    arcpy.AddField_management(fc,"costfix_NN","FLOAT","", "", "", "costfix_NN", "NULLABLE", "NON_REQUIRED", "") # this will be the final potential resources NEEDS CALCULATEFIELD MANAGEMENT AFTER SOIL LOSS RESTRICTIONS AND CARBON RESTRICTIONS
+    expression = "COST2FIX(float(!NN_AV!))"
+    codeblock = """def COST2FIX(valtDMdd):
+       if (valtDMdd == 0):
+           costfix_NN = 0
+           return costfix_NN
+       else: 
+           costfix_NN = 38 
+           return costfix_NN"""
     try:
-        arcpy.CalculateField_management(fc, fieldName, expression, "PYTHON_9.3")
-    except:
-        print fc
-        continue
-    
-import os
-import arcpy
-import itertools
-import csv
-folderPath = r"K:\agriculture_fix"
-arcpy.env.workspace=folderPath
-arcpy.env.overwriteOutput = True
-fcs = [fc for fc in arcpy.ListFeatureClasses() if fc.startswith('Olive')]
-for fc in fcs:
-    fieldName = "cost2_NN"
-    arcpy.AddField_management(fc,"cost2_NN","FLOAT","", "", "", "cost2_NN", "NULLABLE", "NON_REQUIRED", "") # this will be the final potential resources NEEDS CALCULATEFIELD MANAGEMENT AFTER SOIL LOSS RESTRICTIONS AND CARBON RESTRICTIONS
-    expression = "(13* float(!NN_AV!))"
-    try:
-        arcpy.CalculateField_management(fc, fieldName, expression, "PYTHON_9.3")
-    except:
-        print fc
-        continue
-
-## total cost: cost3
-import os
-import arcpy
-import itertools
-import csv
-folderPath = r"K:\agriculture_fix"
-arcpy.env.workspace=folderPath
-arcpy.env.overwriteOutput = True
-fcs = [fc for fc in arcpy.ListFeatureClasses() if fc.startswith('Olive')]
-for fc in fcs:
-    fieldName = "cost3_NN"
-    arcpy.AddField_management(fc,"cost3_NN","FLOAT","", "", "", "cost3_NN", "NULLABLE", "NON_REQUIRED", "") # this will be the final potential resources NEEDS CALCULATEFIELD MANAGEMENT AFTER SOIL LOSS RESTRICTIONS AND CARBON RESTRICTIONS
-    expression = "(float(!cost1_NN!) + float(!cost2_NN!))"
-    try:
-        arcpy.CalculateField_management(fc, fieldName, expression, "PYTHON_9.3")
+        arcpy.CalculateField_management(fc, fieldName, expression, "PYTHON_9.3", codeblock)
     except:
         print fc
         continue
