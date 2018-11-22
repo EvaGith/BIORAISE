@@ -155,8 +155,8 @@ for fc in fcs:
     arcpy.AddField_management(fc,"cost1_OK","FLOAT","", "", "", "cost1_OK", "NULLABLE", "NON_REQUIRED", "") 
     fieldName1 = "avdivha"
     arcpy.AddField_management(fc,"avdivha","FLOAT","", "", "", "avdivha", "NULLABLE", "NON_REQUIRED", "") 
-    expression1 = "!NNN_AV!/!HAf_NNN!"
-    expression = "CBALE(float(!NNN_AV!), float(!HAf_NNN!),float(!avdivha!))"
+    expression1 = "!NN_AV!/!HAf_NN!"
+    expression = "CBALE(float(!NN_AV!), float(!HAf_NN!),float(!avdivha!))"
     codeblock = """def CBALE(valAvailable, valha, valavdivha):
        if (valavdivha == 0):
            cost1_OK = 0
