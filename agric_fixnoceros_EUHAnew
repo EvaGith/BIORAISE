@@ -1,9 +1,7 @@
 ## \\CEDERH\Grupos\RECURSOS_BIOMASA\16_BIOMASUD_BIORAISE\MAPAS\DEFINITIVOS\Agriculture\teselizado\TFS_181122 y se llama “Irrigated_Def1”
 
-##
 import arcpy
 import os
-#arcpy.env.workspace = r"C:\Users\Eva\Desktop\tess_copy\copy"
 arcpy.env.workspace = r"\\CEDERH\Grupos\RECURSOS_BIOMASA\16_BIOMASUD_BIORAISE\MAPAS\DEFINITIVOS\Agriculture\teselizado\TFS_181122"
 fcList = arcpy.ListFeatureClasses("*_Def1.shp","All")
 for fc in fcList:
@@ -18,8 +16,8 @@ from arcpy import env
 #ws = r"C:\Users\Eva\Desktop\tess_copy\copy"
 arcpy.env.workspace = r"\\CEDERH\Grupos\RECURSOS_BIOMASA\16_BIOMASUD_BIORAISE\MAPAS\DEFINITIVOS\Agriculture\teselizado\TFS_181122"
 #arcpy.env.workspace = ws
-fcList = arcpy.ListFeatureClasses("*_Def1.shp","All")
-for fc in fcLst:
+fcs = arcpy.ListFeatureClasses("*_Def1.shp","All")
+for fc in fcs:
     # Convert to numpy array.  "ha_NN" is the field name
     field = arcpy.da.TableToNumPyArray (fc, "ha_NN", skip_nulls=True)
     name = 'prcntha_NN'  
@@ -36,8 +34,8 @@ import numpy
 folderPath = r"\\CEDERH\Grupos\RECURSOS_BIOMASA\16_BIOMASUD_BIORAISE\MAPAS\DEFINITIVOS\Agriculture\teselizado\TFS_181122"
 arcpy.env.workspace=folderPath
 arcpy.env.overwriteOutput = True 
-fcList = arcpy.ListFeatureClasses("*_Def1.shp","All")
-for fc in fcLst:
+fcs = arcpy.ListFeatureClasses("*_Def1.shp","All")
+for fc in fcs:
     expression = "miFunc(!Nut2!, !EUHA_Pa!, !sumha!)"
     codeblock = """def miFunc(miNut2, miEU, miSumaCOR):
         if miEU == 0:
@@ -56,8 +54,8 @@ import arcpy, os, numpy
 from arcpy import env
 ws = r"\\CEDERH\Grupos\RECURSOS_BIOMASA\16_BIOMASUD_BIORAISE\MAPAS\DEFINITIVOS\Agriculture\teselizado\TFS_181122"
 arcpy.env.workspace = ws
-fcList = arcpy.ListFeatureClasses("*_Def1.shp","All")
-for fc in fcLst:
+fcs = arcpy.ListFeatureClasses("*_Def1.shp","All")
+for fc in fcs:
     name = 'EUSTha_NN'  
     expression = '!prcntha_NN!*!NN_EUHA!' 
     try:
@@ -67,24 +65,6 @@ for fc in fcLst:
         print fc
         continue
     
-import os
-import arcpy
-import itertools
-import csv
-import numpy
-folderPath = r"\\CEDERH\Grupos\RECURSOS_BIOMASA\16_BIOMASUD_BIORAISE\MAPAS\DEFINITIVOS\Agriculture\teselizado\TFS_181122"
-arcpy.env.workspace=folderPath
-arcpy.env.overwriteOutput = True
-fcList = arcpy.ListFeatureClasses("*_Def1.shp","All")
-for fc in fcLst:
-    name = "sumhaNN"
-    arcpy.AddField_management(fc, name, "FLOAT","", "", "", name, "NULLABLE", "NON_REQUIRED", "")
-    expression = "miFunc(!Nut2!, !ha_NN!)"
-    codeblock = """def miFunc(miNut2, miTDNN):
-        sumhaNN = numpy.sum([r[0] for r in arcpy.da.SearchCursor(fc,["ha_NN", "Nut2"], where_clause="Nut2 like '" + miNut2 + "'")])  
-        return sumhaNN
-        """
-    arcpy.CalculateField_management(fc, "sumhaNN", expression, "PYTHON_9.3", codeblock)
         
 ### POTENTIAL BIOMASS NEW
 ## We can now recompute the potential biomass applying a conditional to apply either CORINE/EUROSTAT hectares    
@@ -97,8 +77,8 @@ import numpy
 folderPath = r"\\CEDERH\Grupos\RECURSOS_BIOMASA\16_BIOMASUD_BIORAISE\MAPAS\DEFINITIVOS\Agriculture\teselizado\TFS_181122"
 arcpy.env.workspace=folderPath
 arcpy.env.overwriteOutput = True 
-fcList = arcpy.ListFeatureClasses("*_Def1.shp","All")
-for fc in fcLst:
+fcs = arcpy.ListFeatureClasses("*_Def1.shp","All")
+for fc in fcs:
     expression = "miFunc(!Nut2!, !TDMHA!, !EUSTha_NN!, !ha_NN!, !sumha!, !NN_EUHA!)"
     codeblock = """def miFunc(miNut2, miTD, miEU, miHA, miSumaCOR, miSumaEUSTAT):
         if miSumaEUSTAT > miSumaCOR:
@@ -243,8 +223,6 @@ for fc in fcs:
     except:
         print fc
         continue
-
-
 
 
 
