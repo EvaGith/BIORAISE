@@ -226,23 +226,27 @@ arcpy.env.overwriteOutput = True
 
 fcs = [fc for fc in arcpy.ListFeatureClasses("*21*","All") if not fc.startswith('V')]
 for fc in fcs:
-    fieldName = "cost1"
-    arcpy.AddField_management(fc,"cost1","FLOAT","", "", "", "cost1", "NULLABLE", "NON_REQUIRED", "") # this will be the final potential resources NEEDS CALCULATEFIELD MANAGEMENT AFTER SOIL LOSS RESTRICTIONS AND CARBON RESTRICTIONS
-    expression = "CBALE(float(!tDMdf1!))"
-    codeblock = """def CBALE(valtDMd):
-       if (valtDMd == 0):
-           cost1 = 0
-           return cost1
-       elif (valtDMd < 0.8):
-           cost1 = 40 * (0.8**-0.7)
-           return cost1
-       elif (valtDMd < 14):
-           cost1= 40 * (valtDMd**-0.7)
-           return cost1
-       else: 
-           cost1 = 40 * (14**-0.7)
-           return cost1"""
+    fieldName = "cost1_OK"
+    arcpy.AddField_management(fc,"cost1_OK","FLOAT","", "", "", "cost1_OK", "NULLABLE", "NON_REQUIRED", "") 
+    fieldName1 = "avdivha"
+    arcpy.AddField_management(fc,"avdivha","FLOAT","", "", "", "avdivha", "NULLABLE", "NON_REQUIRED", "") 
+    expression1 = "!NNN_AV!/!HAf_NNN!"
+    expression = "CBALE(float(!NNN_AV!), float(!HAf_NNN!),float(!avdivha!))"
+    codeblock = """def CBALE(valAvailable, valha, valavdivha):
+       if (valavdivha == 0):
+           cost1_OK = 0
+           return cost1_OK
+       elif (valavdivha < 0.8) and (valavdivha > 0):
+           cost1_OK = 40 * (0.8**-0.7)
+           return cost1_OK
+       elif (valavdivha > 0.8) and (valavdivha < 14):
+           cost1_OK= 40 * ((valAvailable/valha)**-0.7)
+           return cost1_OK
+       else:
+           cost1_OK = 40 * (14**-0.7)
+           return cost1_OK"""
     try:
+        arcpy.CalculateField_management(fc, fieldName1, expression1, "PYTHON_9.3", codeblock)
         arcpy.CalculateField_management(fc, fieldName, expression, "PYTHON_9.3", codeblock)
     except:
         print fc
@@ -346,7 +350,7 @@ fcs = [fc for fc in arcpy.ListFeatureClasses("*21*","All") if not fc.startswith(
 for fc in fcs:
     fieldName = "cost3"
     arcpy.AddField_management(fc,"cost3","FLOAT","", "", "", "cost3", "NULLABLE", "NON_REQUIRED", "") # this will be the final potential resources NEEDS CALCULATEFIELD MANAGEMENT AFTER SOIL LOSS RESTRICTIONS AND CARBON RESTRICTIONS
-    expression = "(float(!cost1tDM!) + float(!cost2!))"
+    expression = "(float(!cost1_OK!) + float(!cost2!))"
     try:
         arcpy.CalculateField_management(fc, fieldName, expression, "PYTHON_9.3")
     except:
