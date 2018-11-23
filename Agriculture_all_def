@@ -75,6 +75,8 @@ for fc in fcs:
     codeblock = """def miFunc(miNut2, miEU, miSumaCOR):
         if miEU == 0:
             return miSumaCOR
+        elif miEU > miSumaCOR:
+            return miSumaCOR
         else:
             return miEU
         """
@@ -198,7 +200,7 @@ for fc in fcs:
     arcpy.CalculateField_management(fc, name, expression, "PYTHON_9.3", codeblock)
 
 # equivalent to the easy way of computing potential biomass
-# herbaceous
+# herbaceous: we allow for zeros in herbaceous crops. there are many other herbaceous crops in corine not considered in eurostats
 import os
 import arcpy
 import itertools
@@ -207,7 +209,7 @@ import numpy
 folderPath = r"E:\fix_noWM"
 arcpy.env.workspace=folderPath
 arcpy.env.overwriteOutput = True 
-fcs = [fc for fc in arcpy.ListFeatureClasses() if fc.startswith("Irrigated")]
+fcs = [fc for fc in arcpy.ListFeatureClasses() if fc.endswith("21")]
 print fcs 
 for fc in fcs:
     field = "POT"
@@ -231,7 +233,7 @@ for fc in fcs:
         continue
 
 
-# permanent (Olive, Orchard, Vineyard) 
+# permanent (Olive, Orchard, Vineyard) no zeros in potential/available biomass in permanent crops
 import os
 import arcpy
 import itertools
