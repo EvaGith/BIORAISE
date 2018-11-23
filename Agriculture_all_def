@@ -1,3 +1,4 @@
+## VIP layer must be projected (not GCS!), else hectares will not be computed correctly!!
 import arcpy
 import os
 arcpy.env.workspace = r"E:\fix_noWM"
@@ -12,7 +13,7 @@ for fc in fcs:
         print fc
         continue
 
-
+## Distribution of sizes of each register compared to the sum of hectares by field NUT2 (sumha)
 ## percent code (run after we have finished sumHA/run first in another disk to compare): aunque lo rodamos porque consideramos que sumHA de ahora es igual al de antes (la suma de las hectáreas de CORINE por NUT2 tienen que se las mismas teselizadas o no)
 import arcpy, os, numpy
 from arcpy import env
@@ -29,37 +30,7 @@ for fc in fcs:
         print fc
         continue
 
-import arcpy
-import os
-arcpy.env.workspace = r"E:\fix_noWM"
-fcs = arcpy.ListFeatureClasses("Irrigated*","All")
-arcpy.env.overwriteOutput = True 
-for fc in fcs:
-    arcpy.CheckOutExtension("Spatial")
-    arcpy.AddField_management(fc,"ha_NN","FLOAT","", "", "", name, "NULLABLE", "NON_REQUIRED", "")   
-    expression1 = "{0}".format("!SHAPE.area@HECTARES!")  
-    try:      
-        arcpy.CalculateField_management(fc, "ha_NN", expression1, "PYTHON")  
-    except:
-        print fc
-        continue
-
-import arcpy, os, numpy
-from arcpy import env
-arcpy.env.workspace = r"E:\fix_noWM"
-fcs = arcpy.ListFeatureClasses("Irrigated*","All")
-print fcs
-for fc in fcs:
-    field = arcpy.da.TableToNumPyArray (fc, "ha_NN", skip_nulls=True)
-    name = 'prcntha_NN'  
-    expression = 'float(!ha_NN!)/float(!sumha!)'  
-    arcpy.AddField_management(fc, name, "FLOAT","", "", "", name, "NULLABLE", "NON_REQUIRED", "")
-    try:
-        arcpy.CalculateField_management(fc, name, expression, "PYTHON_9.3")
-    except:
-        print fc
-        continue
-
+# SELECTION between hectares by NUT2 either of CORINE (sumha) either of EUROSTAT (EUHA_DEF): the field will be hectares by NUT2
 ## after percent, we can recalculate EUROSTATha (Eurostat hectares by NUT2 distributed in each row proportionally to its size (percentha_NN))
 # herbaceous: siempre va a ser lo que diga eurostat, aunque sea 0, porque puede haber regadío en corine que no sean los cultivos eurostat que sirvan para biomasa
 import os
@@ -72,12 +43,12 @@ arcpy.env.workspace=folderPath
 arcpy.env.overwriteOutput = True 
 fcs = arcpy.ListFeatureClasses("*_21.shp","All")  ## APLICAR A LOS HERBÁCEOS 
 for fc in fcs:
-    expression = "miFunc(!Nut2!, !EUHA_PA!, !sumha!)"
+    expression = "miFunc(!Nut2!, !EUHA_DEF!, !sumha!)"
     codeblock = """def miFunc(miNut2, miEU, miSumaCOR):
         if miEU == 0:
             return miEU
-        elif miEU > miSumaCor:
-            return miSumaCor
+        elif miEU > miSumaCOR:
+            return miSumaCOR
         else:
             return miEU
         """
@@ -87,7 +58,7 @@ for fc in fcs:
     except:
         print fc
         continue
-        
+
 # Permanent except MIX
 import os
 import arcpy
@@ -100,10 +71,10 @@ arcpy.env.overwriteOutput = True
 fcs = [fc for fc in arcpy.ListFeatureClasses() if not fc.endswith("21.shp") and not os.path.splitext(fc)[0].startswith('Mix')]  ## APLICAR A LOS NO HERBÁCEOS excepto Mixtos, que no tiene EUHA
 print fcs
 for fc in fcs:
-    expression = "miFunc(!Nut2!, !EUHA!, !sumha!)"
+    expression = "miFunc(!Nut2!, !EUHA_DEF!, !sumha!)"
     codeblock = """def miFunc(miNut2, miEU, miSumaCOR):
         if miEU == 0:
-            return miEU
+            return miSumaCOR
         else:
             return miEU
         """
@@ -114,7 +85,7 @@ for fc in fcs:
         print fc
         continue
 
-## all but MixCrops: EUROSTAT by NUT2 hectares distribution
+## all but MixCrops: hectares distribution (we have already chosen between hectares either CORINE or EUROSTAT by NUT2, now we distribute these considering the percent of the real surface of each row)
 import arcpy, os, numpy
 from arcpy import env
 ws = r"E:\fix_noWM"
@@ -130,6 +101,7 @@ for fc in fcs:
         print fc
         continue
 
+## this is equivalent to EUSTha_NN. the conditional inside is the same as the NN_EUHA field, but the choice of hectares is based on the rows distributed values
 # HAf_NN
 # permanent except Mix crops
 import os
@@ -144,7 +116,7 @@ fcs = [fc for fc in arcpy.ListFeatureClasses() if not fc.endswith("21.shp") and 
 for fc in fcs:
     fieldName = "HAf_NN"
     arcpy.AddField_management(fc,"HAf_NN","FLOAT","", "", "", "HAf_NN", "NULLABLE", "NON_REQUIRED", "") 
-    expression = "REALSURF(float(!ha_NN!), float(!EUSTha_NN!),float(!sumha!),float(!NN_EUHA!))"
+    expression = "REALSURF(float(!ha_NN!), float(!EUSTha_NN!),float(!sumha!),float(!EUHA_DEF!))"
     codeblock = """def REALSURF(valCORha, valEUha, valsumCOR, valsumEU):
        if valsumEU < valsumCOR and valsumEU == 0:
            HAf_NN = valCORha
@@ -173,7 +145,7 @@ fcs = [fc for fc in arcpy.ListFeatureClasses() if fc.endswith("21.shp")]
 for fc in fcs:
     fieldName = "HAf_NN"
     arcpy.AddField_management(fc,"HAf_NN","FLOAT","", "", "", "HAf_NN", "NULLABLE", "NON_REQUIRED", "") 
-    expression = "REALSURF(float(!ha_NN!), float(!EUSTha_NN!),float(!sumha!),float(!NN_EUHA!))"
+    expression = "REALSURF(float(!ha_NN!), float(!EUSTha_NN!),float(!sumha!),float(!EUHA_DEF!))"
     codeblock = """def REALSURF(valCORha, valEUha, valsumCOR, valsumEU):
        if valsumEU < valsumCOR and valsumEU == 0:
            HAf_NN = valEUha
@@ -200,7 +172,7 @@ import arcpy
 import itertools
 folderPath = r"E:\fix_noWM"
 arcpy.env.workspace=folderPath
-fcs = arcpy.ListFeatureClasses()
+fcs = [fc for fc in arcpy.ListFeatureClasses() if not fc.startswith("Mix")]
 for fc in fcs:
     name = 'NN_POT'
     expression = "miFunc(!TDMHA!, !HAf_NN!)"
@@ -209,7 +181,23 @@ for fc in fcs:
         return d""" 
     arcpy.AddField_management(fc, name, "FLOAT","", "", "", name, "NULLABLE", "NON_REQUIRED", "")
     arcpy.CalculateField_management(fc, name, expression, "PYTHON_9.3", codeblock)
+#
+import os
+import arcpy
+import itertools
+folderPath = r"E:\fix_noWM"
+arcpy.env.workspace=folderPath
+fcs = [fc for fc in arcpy.ListFeatureClasses() if fc.startswith("Mix")]
+for fc in fcs:
+    name = 'NN_POT'
+    expression = "miFunc(!TDMHA!, !ha_NN!)"
+    codeblock = """def miFunc(miTDMHA, misuperficie):
+        d = miTDMHA * misuperficie
+        return d""" 
+    arcpy.AddField_management(fc, name, "FLOAT","", "", "", name, "NULLABLE", "NON_REQUIRED", "")
+    arcpy.CalculateField_management(fc, name, expression, "PYTHON_9.3", codeblock)
 
+# equivalent to the easy way of computing potential biomass
 # herbaceous
 import os
 import arcpy
@@ -219,17 +207,20 @@ import numpy
 folderPath = r"E:\fix_noWM"
 arcpy.env.workspace=folderPath
 arcpy.env.overwriteOutput = True 
-fcs = [fc for fc in arcpy.ListFeatureClasses() if fc.endswith("21.shp")]
-#print fcs 
+fcs = [fc for fc in arcpy.ListFeatureClasses() if fc.startswith("Irrigated")]
+print fcs 
 for fc in fcs:
     field = "POT"
-    expression = "miFunc(!TDMHA!, !EUSTha_NN!, !ha_NN!, !sumha!, !EUHA_PA!)"
+    expression = "miFunc(!TDMHA!, !EUSTha_NN!, !ha_NN!, !sumha!, !EUHA_DEF!)"
     codeblock = """def miFunc(miTD, miEU, miHA, miSumaCOR, miSumaEUSTAT):
         if miSumaEUSTAT > miSumaCOR:
             result = miTD*miHA
             return result
+        elif miSumaEUSTAT < miSumaCOR and miSumaEUSTAT ==0:
+            result = miTD*miEU
+            return result
         else:
-            result = miTD*EU
+            result = miTD*miEU
             return result
         """
     try:
@@ -251,7 +242,7 @@ arcpy.env.workspace=folderPath
 arcpy.env.overwriteOutput = True 
 fcs = [fc for fc in arcpy.ListFeatureClasses() if not fc.endswith("21.shp") and not os.path.splitext(fc)[0].startswith('Mix')] 
 for fc in fcs:
-    expression = "miFunc(!Nut2!, !TDMHA!, !EUSTha_NN!, !ha_NN!, !sumha!, !EUHA!)"
+    expression = "miFunc(!Nut2!, !TDMHA!, !EUSTha_NN!, !ha_NN!, !sumha!, !EUHA_DEF!)"
     codeblock = """def miFunc(miNut2, miTD, miEU, miHA, miSumaCOR, miSumaEUSTAT):
         if miSumaEUSTAT > miSumaCOR:
             return miTD*miHA
@@ -267,7 +258,7 @@ for fc in fcs:
         print fc
         continue
   
-## AVAILABLE BIOMASS NEW (MIX falta el PCT)
+## AVAILABLE BIOMASS NEW 
 import os
 import arcpy
 import itertools
@@ -518,10 +509,13 @@ for fc in fcs:
         print fc
         continue
 
-## dropfield/clean for TFS
+## dropfield/clean/project for TFS
 names
 Potential tDMpf1/tDMp (Mix)
 Available tDMdf1/tDMd (Mix)
 surface HAf/ha (Mix)
 costs = cost1
 cost
+
+
+
