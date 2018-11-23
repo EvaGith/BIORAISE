@@ -76,6 +76,8 @@ for fc in fcs:
     codeblock = """def miFunc(miNut2, miEU, miSumaCOR):
         if miEU == 0:
             return miEU
+        elif miEU > miSumaCor:
+            return miSumaCor
         else:
             return miEU
         """
@@ -85,6 +87,7 @@ for fc in fcs:
     except:
         print fc
         continue
+        
 # Permanent except MIX
 import os
 import arcpy
