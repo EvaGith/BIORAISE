@@ -1,0 +1,52 @@
+# FEATURE CLASS CONVERSION FROM ZM POLYGONS TO POLYGONS
+# FeatureClassConversion. Conversion tools/To shapefile/feature class to shapefile
+# environments: disable M coordinate, disable Z coordinate
+
+# already web mercator projected: do not recalculate hectares of the polygons because it is not UTM projected
+
+# rebuild potential/available/costs because of artifacts in slopes after spatial join
+# new approach: zonal stats as table for conifers, broadleaved, mixed and shrubs
+
+# import PESERA (soil erosion risk) and SLOPES rasters into gdb. check projections to web mercator for zonal stats
+
+# ZONAL STATS AS TABLE
+import arcpy  
+import os  
+import re
+from arcpy import env
+from arcpy.sa import *
+arcpy.env.workspace = r"E:\TFS_nov_forestry\forestry.gdb"
+
+fcl = arcpy.ListFeatureClasses()
+
+zone_field ="OBJECTID"  
+input_raster = "PESERA"
+field_name = "Avg_pes"
+field_type = "DOUBLE"
+stat = "MEAN"
+
+for fc in features:
+    def add_zonal_field(features, zone_field, input_raster, field_name, field_type, stat):
+        arcpy.AddField_management(features, field_name, field_type)
+        if arcpy.Exists("zonal_table"):
+            try:
+                arcpy.Delete_management("zonal_table")
+            except:
+                arcpy.AddError("Unable to clear temp table")
+                sys.exit(-1)
+        arcpy.AddMessage("Performing zonal statistics: " + field_name + " in " + features)
+        zonal_table = ZonalStatisticsAsTable(features,zone_field, input_raster, "zonal_table", "DATA", stat)
+        arcpy.AddMessage("Digesting " + stat + " from zonal table")
+        stat_dict = {}
+
+        with arcpy.da.SearchCursor(zonal_table,[zone_field,stat]) as cursor:
+            for row in cursor:
+                stat_dict[row[0]] = row[1]
+        arcpy.AddMessage("Calculating " + field_name + "in " + features)
+
+        with arcpy.da.UpdateCursor(features, [zone_field, field_name]) as cursor2:
+            for row2 in cursor2:
+                row2[1] = stat_dict[row2[0]]
+                cursor2.updateRow(row2)
+            return add_zonal_field
+      
