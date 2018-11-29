@@ -6,6 +6,8 @@
 
 # rebuild potential/available/costs because of artifacts in slopes after spatial join
 # new approach: zonal stats as table for conifers, broadleaved, mixed and shrubs
+# 2DO: dehesas (244)
+#
 
 # import PESERA (soil erosion risk) and SLOPES rasters into gdb. check projections from web mercator for zonal stats
 # import ORCDRC30_01 (soil organic carbon) in units comparable to chrisgas matrix reviewed
