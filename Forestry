@@ -5,13 +5,18 @@
 # important: if already web mercator projected: do not recalculate hectares of the polygons because it is not UTM projected
 
 # rebuild potential/available/costs because of artifacts in slopes after spatial join
-# new approach: zonal stats as table for conifers, broadleaved, mixed and shrubs
-# 2DO: dehesas (244)
-#
+# new approach: zonal stats as table for conifers, broadleaved, mixed and shrubs, dehesas
 
 # import PESERA (soil erosion risk) and SLOPES rasters into gdb. check projections from web mercator for zonal stats
 # import ORCDRC30_01 (soil organic carbon) in units comparable to chrisgas matrix reviewed
 # import AGB (JRC forest increment raster) + NPP (net primary productivity raster)
+# import NPP > 0 (see doc): units Tg/yrm2
+
+# simplify raster names for easier scripts 
+# AGB_All_FF_Full_ISE_BS = AGB
+# EU8_slope_mask = slope
+# npp2010_LAEA_gt0 = npp
+# ORCDRC30_01 = orgc
 
 ### INTEGRATION OF RASTER DATA INTO SHAPEFILE POLYGON DATA
 ## Two approaches for integrating raster data into vector data. 
@@ -45,6 +50,8 @@ for raster in rasterlst:
 # if the identifiers are with the same name, this can generate confusion in the Join Field
 # VIP: the second column in the zonal table contains the Identifier in the Shapefile layer (ID to use in the Join Field operation)
 # zonal stats from rasters: PESERA, ORCDRC30_01, AGB, NPP, slope
+# if raster is integer, more statistics are possible
+# we generate all possible stats with the option "ALL" (save the dbfs to check more info about min/max/range/sd)
 
 import arcpy  
 import os  
@@ -52,40 +59,46 @@ import re
 from arcpy import env
 from arcpy.sa import *
 arcpy.env.workspace = r"E:\TFS_nov_forestry\forestry.gdb"
-
-fcl = arcpy.ListFeatureClasses()
-
-zone_field ="OBJECTID"  
-input_raster = "PESERA"
-field_name = "Avg_pes"
-field_type = "DOUBLE"
-stat = "MEAN"
-
-
-
+arcpy.env.overwriteOutput = True
+# arcpy.env.extent = "MINOF" # check what option is best. https://pro.arcgis.com/es/pro-app/tool-reference/environment-settings/output-extent.htm
+destination_path = r"E:\TFS_nov_forestry\forestry.gdb"
+fcList = arcpy.ListFeatureClasses()
+for fc in fcList:    
+    #featureClasses = arcpy.ListFeatureClasses("*XX*","All") # if we want to select only certain features
+    rasters = arcpy.ListRasters()
+    for raster in rasters:
+    	outTable = os.path.join(destination_path, fc + "_" + raster + ".dbf")
+        try:
+    	    arcpy.gp.ZonalStatisticsAsTable_sa(fc, "OBJECTID", raster,outTable,"DATA","MEAN") # important Identifier
+        except:
+            print fc
+            #print raster
+            continue
 
 ### MEANINGFUL NAME
 import arcpy  
 import os  
 import re
-outWorkspace = r"E:\TFS_nov_forestry\forestry.gdb"
+outWorkspace = r"C:\Users\Eva\Desktop\forestryfix\TFS_nov_forestry\forestry.gdb"
 arcpy.env.workspace = outWorkspace  
-feature = arcpy.ListFeatureClasses()
 arcpy.env.overwriteOutput = True 
-
-for fc in feature:
-	#print(fc)
-	name = fc.split('_')[-1].split('.shp')[0]
-        name2 = "I_"+ name
-        print name
-        print name2
+tbList = arcpy.ListTables()
+for tb in tbList:    
+    #print(tb)
+    # table = broad_npp (name type)
+    name = tb.split('_')[0].split('.dbf')[0] # name = broad (it is possible to combine split function like .split('X').split('Y')[0])
+    #print name # e.g. name = broad
+    name2 = tb.split('_')[1].split('dbf')[0]
+    print name2 # e.g. name2= agb
         try:
-            arcpy.AddField_management(fc, name, "FLOAT","", "", "", name, "NULLABLE", "NON_REQUIRED", "")  
-            arcpy.AddField_management(fc, name2, "FLOAT","", "", "", name2, "NULLABLE", "NON_REQUIRED", "") 
-            arcpy.CalculateField_management(fc, name, "'!grid_code!'", "PYTHON_9.3", "") 
-            arcpy.CalculateField_management(fc, name2, "'!pointid!'", "PYTHON_9.3", "") 
+            arcpy.AddField_management(fc, name2, "FLOAT","", "", "", name, "NULLABLE", "NON_REQUIRED", "")   
+            arcpy.CalculateField_management(fc, name, "'!MEAN!'", "PYTHON_9.3", "") 
         except:
             continue
+	    
+	    ****************CONTINUE FROM HERE*******
+	    
+	    
 
 ######## SPATIAL JOIN (check)
 import arcpy
