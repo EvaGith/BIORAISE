@@ -187,6 +187,63 @@ for fc in fcLst:
 
 ## AVAILABLE restrictions orgc (soil organic carbon 30cm depth) + PESERA (soil erosion risk): not in Turkey nor Croatia
 # introduce if/else statements considering nut2 to not apply pesera in turkey/croatia
+# create field potential the same for all layers first
+import os
+import arcpy
+import itertools
+import csv
+folderPath = r"C:\Users\Eva\Desktop\forestryfix\TFS_nov_forestry\forestry.gdb"
+arcpy.env.workspace=folderPath
+arcpy.env.overwriteOutput = True 
+fcLst = arcpy.ListFeatureClasses("Shrub*","All")
+for fc in fcLst:
+    fieldName = "tyr"
+    arcpy.AddField_management(fc, fieldName,"FLOAT","", "", "", fieldName, "NULLABLE", "NON_REQUIRED", "") 
+    expression = "!thayrplus!"
+    try:
+        arcpy.CalculateField_management(fc, fieldName, expression, "PYTHON_9.3")
+    except:
+        print fc
+        continue
+	
+import os
+import arcpy
+import itertools
+import csv
+folderPath = r"C:\Users\Eva\Desktop\forestryfix\TFS_nov_forestry\forestry.gdb"
+arcpy.env.workspace=folderPath
+arcpy.env.overwriteOutput = True 
+fcLst = arcpy.ListFeatureClasses("dehesas*","All")
+for fc in fcLst:
+    fieldName = "tyr"
+    arcpy.AddField_management(fc, fieldName,"FLOAT","", "", "", fieldName, "NULLABLE", "NON_REQUIRED", "") 
+    expression = "!Mgyha!"
+    try:
+        arcpy.CalculateField_management(fc, fieldName, expression, "PYTHON_9.3")
+    except:
+        print fc
+        continue
+	
+	
+import os
+import arcpy
+import itertools
+import csv
+folderPath = r"C:\Users\Eva\Desktop\forestryfix\TFS_nov_forestry\forestry.gdb"
+arcpy.env.workspace=folderPath
+arcpy.env.overwriteOutput = True 
+fcLst = [fc for fc in arcpy.ListFeatureClasses() if fc.startswith('conif') or os.path.splitext(fc)[0].startswith('mix') or os.path.splitext(fc)[0].startswith('broad')]
+#print fcLst
+for fc in fcLst:
+    fieldName = "tyr"
+    arcpy.AddField_management(fc, fieldName,"FLOAT","", "", "", fieldName, "NULLABLE", "NON_REQUIRED", "") 
+    expression = "!Pot_tyr!"
+    try:
+        arcpy.CalculateField_management(fc, fieldName, expression, "PYTHON_9.3")
+    except:
+        print fc
+        continue
+	
 # ENVIRONMENTAL CONSTRAINTS PES ORCDRC01
 # soil organic carbon restriction (30thNov check coefficients in matrix if they are the same for forest and shrubs!!)
 # all countries have orgc values
@@ -200,7 +257,7 @@ fcList = arcpy.ListFeatureClasses()
 for fc in fcList:
     fieldName = "avorgc"
     arcpy.AddField_management(fc,"avorgc","FLOAT","", "", "", "avorgc", "NULLABLE", "NON_REQUIRED", "") 
-    expression = "potential(float(!tyrplus!), float(!Avg_slope!), float(!Avg_orgc!))" # potential biomass names
+    expression = "potential(float(!tyr!), float(!Avg_slope!), float(!Avg_orgc!))" # potential biomass names
     codeblock = """def potential(valPotential_tyr, valSlope, orgc):
        if (valSlope<20):
            if orgc < 1: 
@@ -235,33 +292,38 @@ import os
 from arcpy import env
 arcpy.env.workspace=r"C:\Users\Eva\Desktop\forestryfix\TFS_nov_forestry\forestry.gdb"
 arcpy.env.overwriteOutput = True 
-fcs = [fc for fc in arcpy.ListFeatureClasses() if not fc.endswith('orcdrc1.shp')] # consider separating Turkey/Croatia
+#fcs = [fc for fc in arcpy.ListFeatureClasses() if not fc.endswith('orcdrc1.shp')] # consider separating Turkey/Croatia
+fcs = arcpy.ListFeatureClasses()
 print fcs
 for fc in fcs:
     fieldName = "avpes"
     arcpy.AddField_management(fc,"avpes","FLOAT","", "", "", "avpes", "NULLABLE", "NON_REQUIRED", "") # this will be the final available resources NEEDS CALCULATEFIELD MANAGEMENT AFTER SOIL LOSS RESTRICTIONS AND CARBON RESTRICTIONS
-    expression = "AVPES(float(!tyrplus!), float(!slope!), float(!pes!))"
-    codeblock = """def AVPES(valty, valSlope, soileros):
-       if (valSlope<20):
-           if soileros < 2: 
-               rsoileros = valty * 0.6
-               return rsoileros
-           elif soileros < 10: 
-               rsoileros = valty * 0.4
-               return rsoileros
-           else: 
+    expression = "AVPES(float(!tyr!), float(!Avg_slope!), float(!Avg_pes!))" #30thNov change potential field!!
+    codeblock = """def AVPES(valPotential_tyr, valSlope, valpesera):
+       if valpesera is not None:
+           if (valSlope<20):
+               if valpesera < 2: 
+                   ravpes = valPotential_tyr * 0.6
+                   return ravpes
+               elif valpesera < 10: 
+                   ravpes = valPotential_tyrv * 0.4
+                   return ravpes
+               else: 
+                   return 0
+           elif (valSlope<60):
+               if valpesera < 2: 
+                   rvavpes = valPotential_tyr * 0.5    
+                   return ravpes
+               elif valpesera < 10: 
+                   ravpes = valPotential_tyr * 0.3
+                   return ravpes
+               else: 
+                   return 0
+           else:
                return 0
-       elif (valSlope<60):
-           if soileros < 2: 
-               rsoileros = valty * 0.5    
-               return rsoileros
-           elif soileros < 10: 
-               rsoileros = valty * 0.3
-               return rsoileros
-           else: 
-               return 0
-       else:
-           return 0"""
+        else:	   
+	    ravpes = None
+	    return ravpes"""
     try:
         arcpy.CalculateField_management(fc, fieldName, expression, "PYTHON_9.3", codeblock)
     except:
@@ -270,18 +332,15 @@ for fc in fcs:
 
 ## more restrictive considering pesera erosion risk
 import arcpy
-arcpy.env.workspace=r"E:\new_shrub\Potencial"  
+arcpy.env.workspace=r"C:\Users\Eva\Desktop\forestryfix\TFS_nov_forestry\forestry.gdb"
 arcpy.env.overwriteOutput = True 
-
-fcs = [fc for fc in arcpy.ListFeatureClasses() if not fc.endswith('orcdrc1.shp')]
+fcs = arcpy.ListFeatureClasses()
 #print fcList
-
 for fc in fcs:
-    
     fieldName = "avplus"
     name = "avplus"
     arcpy.AddField_management(fc,"avplus","FLOAT","", "", "", "avplus", "NULLABLE", "NON_REQUIRED", "")
-    expression = "available(float(!avorgc!), float(!avpes!), float(!pes!))"
+    expression = "available(float(!avorgc!), float(!avpes!), float(!Avg_pes!))"
     codeblock = """def available(valavorgc, valavloss, valpesera):
         if valpesera is not None:
             if (valavorgc<valavloss):
@@ -297,29 +356,25 @@ for fc in fcs:
         print fc
         continue
 
-
+# now the AVAILABLE BIOMASS (T/YR) is avplus (rename after costs)
 ### COSTS
-
 import arcpy
-arcpy.env.workspace=r"E:\new_shrub\Available"  
+arcpy.env.workspace=r"C:\Users\Eva\Desktop\forestryfix\TFS_nov_forestry\forestry.gdb"
 arcpy.env.overwriteOutput = True 
-
 featureClasses = arcpy.ListFeatureClasses()
-
-matriz = [["sp_shrub_merge.shp",47.36292204, 0.0299220385], ["cr_shrub_orcdrc1.shp", 47.38296986, 0.049969856], ["fr_shrub.shp",47.3631926,0.0301926], ["gr_shrub.shp",47.36385994, 0.030859944], ["it_shrub.shp",47.36321003, 0.03021003], ["pt_shrub.shp",47.36531403, 0.03231403], ["sl_shrub.shp",47.38942963, 0.056429635], ["tu_shrub_orcdrc1.shp",47.35536757, 0.022367565]] ##coefficients!!!
-
-for i in range (0,7):
+matriz = [["Shrub_av.shp",47.36292204, 0.0299220385], ["broad_av.shp", 47.38296986, 0.049969856], ["conif_av.shp",47.3631926,0.0301926], ["mix_av.shp",47.36531403, 0.03231403], ["dehesas_av.shp",47.38942963, 0.056429635]] ##30thNov coefficients!!!
+for i in range (0,3):
     inTable = matriz[i][0]
     coef1 = matriz[i][1]
     coef2 = matriz[i][2]
     fieldName = "cost"
     field_names = [f.name for f in arcpy.ListFields(inTable)]
-    slope_field = "slope"
+    slope_field = "Avg_slope"
     #biomass = "avplus"
     arcpy.AddField_management(inTable,"cost","FLOAT","", "", "", "cost", "NULLABLE", "NON_REQUIRED", "") 
     #expression = 'float(float(' + str(coef1) + ') - float(!avplus!* ' + str(coef2) + '))'
     #expression = '1'
-    expression = "IgnoreZero(float(!avplus!), float(!slope!), float(coef1), float(coef2))"
+    expression = "IgnoreZero(float(!avplus!), float(!Avg_slope!), float(coef1), float(coef2))"
     codeblock = """def IgnoreZero(val, valSlope, c1, c2):
        if (val==0):
            return 0
@@ -331,28 +386,93 @@ for i in range (0,7):
                return r"""
     arcpy.CalculateField_management(inTable, fieldName, expression, "PYTHON_9.3", codeblock)
 
-
 ## costs array: 
-Francia	47.3631926	0.0301926
-Portugal	47.36531403, 0.03231403
-Grecia	47.36385994, 0.030859944
-Italia	47.36321003, 0.03021003
-Croacia	47.38296986, 0.049969856
-Eslovenia	47.38942963, 0.056429635
-Turquia	47.35536757, 0.022367565
-España	47.36292204, 0.029922038
+Shrub	47.3631926	0.0301926
+Broadleaved	47.36531403, 0.03231403
+Conifers	47.36385994, 0.030859944
+Mixed	47.36321003, 0.03021003
+Dehesas	47.38296986, 0.049969856
 
+### MAKE A COPY. RENAME FIELDS AVPLUS for Shrubs: avplus, Dehesas:Mgyha, avMg, costfix, conifers/broad/mixed: Av_tyr
+## dropfields/project to WebMercator/ send to TFS
+## Change of name 
+import arcpy
+arcpy.env.workspace=r"C:\Users\Eva\Desktop\forestryfix\TFS_nov_forestry\forestry.gdb"
+arcpy.env.overwriteOutput = True 
+featureClasses = arcpy.ListFeatureClasses("dehesas*","All")
+for fc in featureClasses:
+    fieldName = "avMg"
+    try:
+        arcpy.AddField_management(fc,fieldName,"FLOAT","", "", "", fieldName, "NULLABLE", "NON_REQUIRED", "") 
+        expression = 'float(!avplus!)'
+        arcpy.CalculateField_management(fc, fieldName, expression, "PYTHON_9.3")
+    except:
+        print fc
+        continue
+	
+import arcpy
+arcpy.env.workspace=r"C:\Users\Eva\Desktop\forestryfix\TFS_nov_forestry\forestry.gdb"
+arcpy.env.overwriteOutput = True 
+featureClasses = arcpy.ListFeatureClasses("dehesas*","All")
+for fc in featureClasses:
+    fieldName = "costfix"
+    try:
+        arcpy.AddField_management(fc,fieldName,"FLOAT","", "", "", fieldName, "NULLABLE", "NON_REQUIRED", "") 
+        expression = 'float(!cost!)'
+        arcpy.CalculateField_management(fc, fieldName, expression, "PYTHON_9.3")
+    except:
+        print fc
+        continue
 
-## stats 
+import arcpy
+arcpy.env.workspace=r"C:\Users\Eva\Desktop\forestryfix\TFS_nov_forestry\forestry.gdb"
+arcpy.env.overwriteOutput = True 
+fcLst = [fc for fc in arcpy.ListFeatureClasses() if fc.startswith('conif') or os.path.splitext(fc)[0].startswith('mix') or os.path.splitext(fc)[0].startswith('broad')]
+for fc in fcLst:
+    fieldName = "Av_tyr"
+    try:
+        arcpy.AddField_management(fc,fieldName,"FLOAT","", "", "", fieldName, "NULLABLE", "NON_REQUIRED", "") 
+        expression = 'float(!avplus!)'
+        arcpy.CalculateField_management(fc, fieldName, expression, "PYTHON_9.3")
+    except:
+        print fc
+	
+## dropfields
+import arcpy
+import os
+import glob
+arcpy.env.workspace = r"C:\Users\Eva\Desktop\forestryfix\TFS_nov_forestry\forestry.gdb" 
+fclst = arcpy.ListFeatureClasses()
+arcpy.env.overwriteOutput = True
+for fc in fclst:
+    fcName = fc
+    #print(fc)
+    arcpy.env.overwriteOutput = True
+    output = fc.split(".shp")[0] +"_drop.shp"
+    print output
+    out_workspace = r"C:\Users\Eva\Desktop\forestryfix\TFS_nov_forestry" 
+    out_featureclass = os.path.join(out_workspace, 
+                                    os.path.splitext(output)[0])
+    print out_featureclass
+    dropFields = ["tyrplus","OBJECTID_1", "OBJECTID_12","OBJECTID_12_13","OBJECTID_12_13_14", "OBJECTID_12_13_14_15","ha_NN", "tyr", "Avg_agb", "Avg_slope", "avpes", "avorgc", "Avg_npp", "Avg_orgc", "NPPu", "cNPPAGB"]
+    try:
+        arcpy.CopyFeatures_management(fc, out_featureclass)
+        arcpy.DeleteField_management(out_featureclass, dropFields)
+    except:
+        print fc + "bad"
+        continue
+	
+## project to google web mercator
+
+## STATISTICS BY NUT2: for the original ones (with the same names for potential biomass (tyr) and available biomass (avplus)
+# quicker in excel with dynamic tables
 import os
 import arcpy
 import numpy
-folderPath = r"E:\new_shrub\Available" 
+folderPath = r"C:\Users\Eva\Desktop\forestryfix\TFS_nov_forestry\forestry.gdb"
 arcpy.env.workspace=folderPath
 arcpy.env.overwriteOutput = True 
-
 fcLst = arcpy.ListFeatureClasses()
-
 ## potential stats  
 for fc in fcLst:
     fieldName = "pNUT"
@@ -361,9 +481,9 @@ for fc in fcLst:
     arcpy.AddField_management(fc,fieldName,"FLOAT","", "", "", fieldName, "NULLABLE", "NON_REQUIRED", "")  
     arcpy.AddField_management(fc,fieldName1,"FLOAT","", "", "", fieldName1, "NULLABLE", "NON_REQUIRED", "")
     arcpy.AddField_management(fc,fieldName2,"FLOAT","", "", "", fieldName2, "NULLABLE", "NON_REQUIRED", "")
-    expression = "miFunc(!NUT2d!, !tyrplus!, !avplus!, !ha!)"
+    expression = "miFunc(!NUTS_ID!, !tyr!, !avplus!, !ha!)"
     codeblock = """def miFunc(miNut2, mipot, midisp, misup):
-        sumtDMpNUT = numpy.sum([r[0] for r in arcpy.da.SearchCursor(fc,["tyrplus", "NUT2d"], where_clause="NUT2d like '" + miNut2 + "'")])   
+        sumtDMpNUT = numpy.sum([r[0] for r in arcpy.da.SearchCursor(fc,["tyr", "NUTS_ID"], where_clause="NUTS_ID like '" + miNut2 + "'")])   
         return sumtDMpNUT"""
     try:
         arcpy.CalculateField_management(fc, fieldName, expression, "PYTHON_9.3", codeblock)
@@ -375,17 +495,15 @@ for fc in fcLst:
 import os
 import arcpy
 import numpy
-folderPath = r"E:\new_shrub\Available" 
+folderPath = r"C:\Users\Eva\Desktop\forestryfix\TFS_nov_forestry\forestry.gdb"
 arcpy.env.workspace=folderPath
 arcpy.env.overwriteOutput = True 
-
 fcLst = arcpy.ListFeatureClasses()
-
 for fc in fcLst:
     fieldName1 = "dNUT"
-    expression = "miFunc(!NUT2d!, !tyrplus!, !avplus!, !ha!)"
+    expression = "miFunc(!NUTS_ID!, !tyr!, !avplus!, !ha!)"
     codeblock = """def miFunc(miNut2, mipot, midisp, misup):
-        sumtDMdNUT = numpy.sum([r[0] for r in arcpy.da.SearchCursor(fc,["avplus", "NUT2d"], where_clause="NUT2d like '" + miNut2 + "'")])   
+        sumtDMdNUT = numpy.sum([r[0] for r in arcpy.da.SearchCursor(fc,["avplus", "NUTS_ID"], where_clause="NUTS_ID like '" + miNut2 + "'")])   
         return sumtDMdNUT"""
     try:
         arcpy.CalculateField_management(fc, fieldName1, expression, "PYTHON_9.3", codeblock)
@@ -397,66 +515,20 @@ for fc in fcLst:
 import os
 import arcpy
 import numpy
-folderPath = r"E:\new_shrub\Available" 
+folderPath = r"C:\Users\Eva\Desktop\forestryfix\TFS_nov_forestry\forestry.gdb"
 arcpy.env.workspace=folderPath
 arcpy.env.overwriteOutput = True 
-
 fcLst = arcpy.ListFeatureClasses()
 for fc in fcLst:
     fieldName2 = "haNUT"
-    expression = "miFunc(!NUT2d!, !tyrplus!, !avplus!, !ha!)"
+    expression = "miFunc(!NUTS_ID!, !tyr!, !avplus!, !ha!)"
     codeblock = """def miFunc(miNut2, mipot, midisp, misup):
-        sumtDMdNUT = numpy.sum([r[0] for r in arcpy.da.SearchCursor(fc,["ha", "NUT2d"], where_clause="NUT2d like '" + miNut2 + "'")])   
+        sumtDMdNUT = numpy.sum([r[0] for r in arcpy.da.SearchCursor(fc,["ha", "NUTS_ID"], where_clause="NUTS_ID like '" + miNut2 + "'")])   
         return sumtDMdNUT"""
     try:
         arcpy.CalculateField_management(fc, fieldName2, expression, "PYTHON_9.3", codeblock)
     except:
         print fc
-        continue
-
-## Change of name 
-import arcpy
-arcpy.env.workspace=r"E:\Available" 
-arcpy.env.overwriteOutput = True 
-
-featureClasses = arcpy.ListFeatureClasses()
-
-for fc in featureClasses:
-    fieldName = "thayrplus"
-    try:
-        arcpy.AddField_management(fc,fieldName,"FLOAT","", "", "", fieldName, "NULLABLE", "NON_REQUIRED", "") 
-        expression = 'float(!tyrplus!)'
-        arcpy.CalculateField_management(fc, fieldName, expression, "PYTHON_9.3")
-    except:
-        print fc
-        continue
-
-## dropfields
-import arcpy
-import os
-import glob
-
-arcpy.env.workspace = r"E:\Available" 
-
-fclst = arcpy.ListFeatureClasses()
-arcpy.env.overwriteOutput = True
-
-for fc in fclst:
-    fcName = fc
-    #print(fc)
-    arcpy.env.overwriteOutput = True
-    output = fc.split(".shp")[0] +"_drop.shp"
-    print output
-    out_workspace = r"E:\Available" 
-    out_featureclass = os.path.join(out_workspace, 
-                                    os.path.splitext(output)[0])
-    print out_featureclass
-    dropFields = ["tyrplus","pNUT", "dNUT", "haNUT"]
-    try:
-        arcpy.CopyFeatures_management(fc, out_featureclass)
-        arcpy.DeleteField_management(out_featureclass, dropFields)
-    except:
-        print fc + "bad"
         continue
 
 #2. DONE IN SEPTEMBER/OCTOBER. 
