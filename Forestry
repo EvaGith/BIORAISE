@@ -70,13 +70,14 @@ tbList = arcpy.ListTables("*all*","All")
 for tb in tbList:    
     #print(tb)
     # table = broad_slopeall (name type)
-    # name = "Avgsd_slop"
+    name = "Avgsd_slop"
+    expression = "!MEAN!+!STD!"
     #print name 
-        try:
-            arcpy.AddField_management(fc, name, "FLOAT","", "", "", name, "NULLABLE", "NON_REQUIRED", "")   
-            arcpy.CalculateField_management(fc, name, "'!SD!'", "PYTHON_9.3", "") 
-        except:
-            continue
+    try:
+        arcpy.AddField_management(tb, name, "FLOAT","", "", "", name, "NULLABLE", "NON_REQUIRED", "")   
+        arcpy.CalculateField_management(tb, name, expression, "PYTHON_9.3", "") 
+    except:
+        continue
 	    
 	   # note: in last review of forestry, I ran batch processes and named the fields like Avg_agb, Avg_npp...
 	   # consider coding for other names (like name1 = "Avg_" + name) 
@@ -134,6 +135,33 @@ for table in tbl:
     except:
         print inFeatures
 	continue
+	
+# joinfield for slope mean+std = Avgsd_slop 
+import arcpy  
+import os  
+import re
+outWorkspace = r"E:\TFS_nov_forestry\forestry.gdb"
+arcpy.env.workspace = outWorkspace  
+arcpy.env.overwriteOutput = True 
+tbList = arcpy.ListTables("*all*","All")
+for tb in tbList:    
+    basename = tb.split("_")[0] #split name of tables and only take the first word as a basename # dehesas
+    basename1 = tb.split("_")[1] #split name of tables and only take the second word as a basename # npp
+    basename2 = tb.split("_")[0] + "_av" # check if we need to add .shp
+    #print basename2 # not needed: print = dehesas_av
+    inFeatures = os.path.join(ws, basename2) #The table or feature class to which the join table will be joined. (SHAPEFILE IN OUR CASE: CORINE LAND COVER)
+    joinField = "OBJECTID" #The field in the input table on which the join will be based. (ORIGINAL IDENTIFIER FROM SHAPEFILE USED IN THE ZONAL STATISTICS TOOL)
+    joinTable = os.path.join(ws, basename + "_" + basename1) #The table to be joined to the input table. (table generated in zonal stats as table)
+    join_field = "OBJECTID_1" #The field in the join table that contains the values on which the join will be based. 
+    #VIP: CHECK IDENTIFIER IN ZONAL STATS TABLE: IT IS NOT THE ROW NUMBER IDENTIFIER (MOST LEFT COLUMN), BUT THE SECOND (CORRESPONDING TO THE ORIGINAL SHAPEFILE IDENTIFIER)
+    #VIP: might have change the identifier if the new identifier in the zonal stats table is the same name as it was in the shapefile: that's why the corresponding identifier between shapefile and the table is OBJECTID_1
+    #JoinField "JoinField_management (in_data, in_field, join_table, join_field, {fields})"
+    fieldList = ['Avgsd_slop','OBJECTID_1']
+    try:
+        arcpy.JoinField_management(inFeatures , joinField , joinTable , join_field, fieldList)
+    except:
+        print inFeatures
+	continue
 
 ## checked that all is ETRS89 LAEA projected 
 # check hectares
@@ -168,13 +196,14 @@ fcLst = arcpy.ListFeatureClasses()
 for fc in fcLst:
     fieldName = "NPPu"
     arcpy.AddField_management(fc, fieldName,"FLOAT","", "", "", fieldName, "NULLABLE", "NON_REQUIRED", "") 
-    expression = "!Avg_npp!/100)"
+    expression = "!Avg_npp!/100"
     try:
         arcpy.CalculateField_management(fc, fieldName, expression, "PYTHON_9.3")
     except:
         print fc
         continue
-# VIP: check tables to decide whether to apply or not this conditional. maybe not comparable NPP/AGB values	
+# VIP: check tables to decide whether to apply or not this conditional. maybe not comparable NPP/AGB values
+# this is not needed: we only use AGB in forestry layers and NPP in shrubs (need to find out about the NPP units for this)
 import os
 import arcpy
 import itertools
@@ -210,7 +239,7 @@ for fc in fcLst:
         print fc
         continue
 	
-# shrubs use NPP, rest of forestry use AGB # check code 30thNov for this
+# shrubs use NPP, rest of forestry use AGB # 
 # where NPP = null or 0, take fix productivity from Chrisgas ## add 30thNov this fix productivity in the code
 # where no 0 = normalize (compute the mean and divide by it every row)
 
@@ -276,6 +305,7 @@ for fc in fcLst:
 # ENVIRONMENTAL CONSTRAINTS PES ORCDRC01
 # soil organic carbon restriction (30thNov check coefficients in matrix if they are the same for forest and shrubs!!)
 # all countries have orgc values
+# VIP: Select what slope to use (as Avg_slope smoothes the slopes in steep areas, maybe the Avgsd_slop field, considering MEAN+STD is more suitable)
 import arcpy  
 import os  
 from arcpy import env
