@@ -181,9 +181,9 @@ for fc in fcl:
 
 ### POTENTIAL BIOMASS (T/YR)
 ## with NPP and AGB Paloma generates potential biomass (in t/yr) in excel tables
-# ? conditional if AGB is 0, take NPP? check how this is done!
+# ? conditional if AGB is 0, take NPP? check how this is done! IT IS NOT DONE ANYOMRE
 # VIP: first change values in Avg_npp column according to NPP units (1 km2 = 100 hectares)
-# i.e., divide by 100 because km2 is in the denominator
+# i.e., divide by 100 because km2 is in the denominator: after checking values, it is the most reasonable operation to be comparable to AGB
 # VIP: introduce in the conditional what is done in excel (standardize = dividing by the mean)
 import os
 import arcpy
@@ -242,6 +242,88 @@ for fc in fcLst:
 # shrubs use NPP, rest of forestry use AGB # 
 # where NPP = null or 0, take fix productivity from Chrisgas ## add 30thNov this fix productivity in the code
 # where no 0 = normalize (compute the mean and divide by it every row)
+#### NORMALIZATION BY NUT2 (paloma is not normalizing by NUT2)
+# BY NUT2: Avg_agb/Avg_agbMEAN donde AGB !=0
+# columna A. donde Avg_agb != 0, A= mean.numpy Avg_agb by NUT2 
+# columna B. donde Avg_agb != 0, B= Avg_agb/A
+# columna B. donde Avg_agb == 0, B= 1
+# añadir a la tabla un campo que es MAPV byNUT2 (excel). MAPV 
+# columna C. MAPV*B POTENTIAL T/YR
+
+# column A
+import os
+import arcpy
+import itertools
+import csv
+import numpy
+outWorkspace = r"E:\TFS_nov_forestry\forestry.gdb"
+arcpy.env.workspace = outWorkspace  
+arcpy.env.overwriteOutput = True 
+fcs = arcpy.ListFeatureClasses()
+fcLst = [fc for fc in arcpy.ListFeatureClasses() if not fc.startswith('Shrub')]
+for fc in fcLst:
+    fieldName = "A"
+    arcpy.AddField_management(fc, fieldName,"FLOAT","", "", "", fieldName, "NULLABLE", "NON_REQUIRED", "") 
+    expression = "funcA(float(!Avg_agb!), !NUTS_ID!)" # change for Avg_npp in shrub feature class
+    codeblock = """def funcA(valavgagb, miNut2):
+       if (valavgagb != 0):
+           meanagb =  numpy.mean([r[0] for r in arcpy.da.SearchCursor(fc,["Avg_agb", "NUTS_ID"], where_clause="NUTS_ID like '" + miNut2 + "'")]) 
+           return meanagb 
+       else:
+           return None"""
+    try:
+        arcpy.CalculateField_management(fc, fieldName, expression, "PYTHON_9.3")
+    except:
+        print fc
+        continue
+
+# column B	
+import os
+import arcpy
+import itertools
+import csv
+import numpy
+outWorkspace = r"E:\TFS_nov_forestry\forestry.gdb"
+arcpy.env.workspace = outWorkspace  
+arcpy.env.overwriteOutput = True 
+fcs = arcpy.ListFeatureClasses()
+fcLst = [fc for fc in arcpy.ListFeatureClasses() if not fc.startswith('Shrub')]
+for fc in fcLst:
+    fieldName = "B"
+    arcpy.AddField_management(fc, fieldName,"FLOAT","", "", "", fieldName, "NULLABLE", "NON_REQUIRED", "") 
+    expression = "funcB(float(!Avg_agb!), !A!)" # change for Avg_npp in shrub feature class
+    codeblock = """def funcB(valavgagb, colA):
+       if (valavgagb != 0):
+           r = valavgagb/A
+           return r 
+       else:
+           return 1"""
+    try:
+        arcpy.CalculateField_management(fc, fieldName, expression, "PYTHON_9.3")
+    except:
+        print fc
+        continue
+	
+# column C	
+import os
+import arcpy
+import itertools
+import csv
+import numpy
+outWorkspace = r"E:\TFS_nov_forestry\forestry.gdb"
+arcpy.env.workspace = outWorkspace  
+arcpy.env.overwriteOutput = True 
+fcs = arcpy.ListFeatureClasses()
+fcLst = [fc for fc in arcpy.ListFeatureClasses() if not fc.startswith('Shrub')]
+for fc in fcLst:
+    fieldName = "C"
+    arcpy.AddField_management(fc, fieldName,"FLOAT","", "", "", fieldName, "NULLABLE", "NON_REQUIRED", "") 
+    expression = "float(!MAPV!)*!B!" # change for Avg_npp in shrub feature class
+    try:
+        arcpy.CalculateField_management(fc, fieldName, expression, "PYTHON_9.3")
+    except:
+        print fc
+        continue
 
 ## AVAILABLE restrictions orgc (soil organic carbon 30cm depth) + PESERA (soil erosion risk): not in Turkey nor Croatia
 # introduce if/else statements considering nut2 to not apply pesera in turkey/croatia
@@ -316,7 +398,7 @@ fcList = arcpy.ListFeatureClasses()
 for fc in fcList:
     fieldName = "avorgc"
     arcpy.AddField_management(fc,"avorgc","FLOAT","", "", "", "avorgc", "NULLABLE", "NON_REQUIRED", "") 
-    expression = "potential(float(!tyr!), float(!Avg_slope!), float(!Avg_orgc!))" # potential biomass names
+    expression = "potential(float(!tyr!), float(!Avgsd_slop!), float(!Avg_orgc!))" # potential biomass names
     codeblock = """def potential(valPotential_tyr, valSlope, orgc):
        if (valSlope<20):
            if orgc < 1: 
@@ -357,7 +439,7 @@ print fcs
 for fc in fcs:
     fieldName = "avpes"
     arcpy.AddField_management(fc,"avpes","FLOAT","", "", "", "avpes", "NULLABLE", "NON_REQUIRED", "") # this will be the final available resources NEEDS CALCULATEFIELD MANAGEMENT AFTER SOIL LOSS RESTRICTIONS AND CARBON RESTRICTIONS
-    expression = "AVPES(float(!tyr!), float(!Avg_slope!), float(!Avg_pes!))" #30thNov change potential field!!
+    expression = "AVPES(float(!tyr!), float(!Avgsd_slop!), float(!Avg_pes!))" #30thNov change potential field!!
     codeblock = """def AVPES(valPotential_tyr, valSlope, valpesera):
        if valpesera is not None:
            if (valSlope<20):
