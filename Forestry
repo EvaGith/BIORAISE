@@ -291,33 +291,36 @@ import arcpy
 import itertools
 import csv
 import numpy
-outWorkspace = r"E:\TFS_nov_forestry\forestry.gdb"
+outWorkspace = r"C:\Users\Eva\Desktop\forestryfix\nut2weigh\forestry.gdb"
 arcpy.env.workspace = outWorkspace  
 arcpy.env.overwriteOutput = True 
 fcs = arcpy.ListFeatureClasses()
 fcLst = [fc for fc in arcpy.ListFeatureClasses() if not fc.startswith('Shrub')]
 for fc in fcLst:
     fieldName = "normagb"
-    arcpy.AddField_management(fc, fieldName,"FLOAT","", "", "", fieldName, "NULLABLE", "NON_REQUIRED", "") 
-    expression = "funcNormagb(float(!Avg_agb!), !n_Avgagb!)" # change for Avg_npp in shrub feature class
-    codeblock = """def funcB(valavgagb, colA):
-       if (valavgagb != 0):
-           r = valavgagb/A
+    #arcpy.AddField_management(fc, fieldName,"FLOAT","", "", "", fieldName, "NULLABLE", "NON_REQUIRED", "") 
+    expression = "funcNorm(!Avg_agb!, !N_AVGAGB!)" # change for Avg_npp in shrub feature class
+    codeblock = """def funcNorm(valavgagb, colA):
+       if (valavgagb != 0) and (valavgagb is not None):
+           r = valavgagb/colA
            return r 
+       elif (valavgagb == 0) and (valavgagb is not None):
+           r = 1
        else:
            return 1"""
     try:
-        arcpy.CalculateField_management(fc, fieldName, expression, "PYTHON_9.3")
+        arcpy.CalculateField_management(fc, fieldName, expression, "PYTHON_9.3", codeblock)
     except:
         print fc
         continue
+	
 	
 import os
 import arcpy
 import itertools
 import csv
 import numpy
-outWorkspace = r"E:\TFS_nov_forestry\forestry.gdb"
+outWorkspace = r"C:\Users\Eva\Desktop\forestryfix\nut2weigh\forestry.gdb"
 arcpy.env.workspace = outWorkspace  
 arcpy.env.overwriteOutput = True 
 fcs = arcpy.ListFeatureClasses()
@@ -325,26 +328,29 @@ fcLst = [fc for fc in arcpy.ListFeatureClasses() if fc.startswith('Shrub')]
 for fc in fcLst:
     fieldName = "normnpp"
     arcpy.AddField_management(fc, fieldName,"FLOAT","", "", "", fieldName, "NULLABLE", "NON_REQUIRED", "") 
-    expression = "funcNormagb(float(!Avg_nppu!), !n_Avgnpp!)" # change for Avg_npp(u) name in shrub feature class
-    codeblock = """def funcB(valavgnpp, colA):
-       if (valavgnpp != 0):
-           r = valavgnpp/A
+    expression = "funcNorm(!Avg_nppu!, !N_AVGNPP!)" # change for Avg_npp(u) name in shrub feature class
+    codeblock = """def funcNorm(valavgnpp, colA):
+       if (valavgnpp != 0) and (valavgnpp is not None):
+           r = valavgnpp/colA
            return r 
+       elif (valavgnpp == 0) and (valavgnpp is not None):
+           r = 1
        else:
            return 1"""
-    try:
+    try:	   
         arcpy.CalculateField_management(fc, fieldName, expression, "PYTHON_9.3")
     except:
         print fc
         continue
-	
+
+###### RUN FROM HERE WHEN JOINFIELD OF MAPV FINISHES
 # VIP. column Potential biomass (t/yr). POTENTIAL BIOMASS = normalized Avg_agb value by NUT2 * productivity by NUT2 	
 import os
 import arcpy
 import itertools
 import csv
 import numpy
-outWorkspace = r"E:\TFS_nov_forestry\forestry.gdb"
+outWorkspace = r"C:\Users\Eva\Desktop\forestryfix\nut2weigh\forestry.gdb"
 arcpy.env.workspace = outWorkspace  
 arcpy.env.overwriteOutput = True 
 fcs = arcpy.ListFeatureClasses()
@@ -581,11 +587,17 @@ for fc in fcs:
 # see excel to apply formula
 
 # Apply costs coefficients considering costs + 30% expensive if Avgsd_slop > 20
+## COSTS
+## not potential computed using normalization by nut2
+# costs OVER AVPLUS (slopesmean+sd)
+import os
 import arcpy
-arcpy.env.workspace=r"C:\Users\Eva\Desktop\forestryfix\TFS_nov_forestry\forestry.gdb"
+import itertools
+import csv
+folderPath = r"\\CEDERH\Grupos\RECURSOS_BIOMASA\16_BIOMASUD_BIORAISE\MAPAS\DEFINITIVOS\Forestry_nov18_all\Available"
+arcpy.env.workspace=folderPath
 arcpy.env.overwriteOutput = True 
-featureClasses = arcpy.ListFeatureClasses()
-matriz = [["Shrub_av.shp",47.36292204, 0.0299220385], ["broad_av.shp", 47.38296986, 0.049969856], ["conif_av.shp",47.3631926,0.0301926], ["mix_av.shp",47.36531403, 0.03231403], ["dehesas_av.shp",47.38942963, 0.056429635]] ##30thNov coefficients!!!
+matriz = [["conif_av_1.shp",53.90108561,0.001085613],["broad_av_1.shp",46.20079768,0.000797677],["mixed_av_1.shp",48.76772987,0.001063202],["dehesas_av_1shp.shp",48.65738928,0.004389283]] 
 for i in range (0,3):
     inTable = matriz[i][0]
     coef1 = matriz[i][1]
@@ -594,24 +606,67 @@ for i in range (0,3):
     field_names = [f.name for f in arcpy.ListFields(inTable)]
     slope_field = "Avgsd_slop"
     newfield = "avha20"
-    arcpy.AddField_management(fc, newfield,"FLOAT","", "", "", newfield, "NULLABLE", "NON_REQUIRED", "")
+    arcpy.AddField_management(inTable, newfield,"FLOAT","", "", "", newfield, "NULLABLE", "NON_REQUIRED", "")
     expression = "(!avplus!*20)/!ha!"
     #biomass = "avplus"
     arcpy.AddField_management(inTable,"cost","FLOAT","", "", "", "cost", "NULLABLE", "NON_REQUIRED", "") 
     arcpy.CalculateField_management(inTable, newfield, expression, "PYTHON_9.3")
-    #expression = 'float(float(' + str(coef1) + ') - float(!avha20!* ' + str(coef2) + '))'
+    expression = 'float(float(' + str(coef1) + ') - float(!avha20!* ' + str(coef2) + '))'
     #expression = '1'
-    expression = "IgnoreZero(float(!avplus!), float(!Avg_slope!), float(coef1), float(coef2))"
+    expression = "IgnoreZero(float(!avplus!), float(!Avgsd_slop!), float(coef1), float(coef2))"
     codeblock = """def IgnoreZero(val, valSlope, c1, c2):
-       if (val==0):
-           return 0
-       else:
-           r=c1 - val * c2
-           if (valSlope>20):
-               return r*1.3
-           else:   
-               return r"""
-    arcpy.CalculateField_management(inTable, fieldName, expression, "PYTHON_9.3", codeblock)
+        if (val==0):
+            return 0
+        else:
+            r=c1 - val * c2
+            if (valSlope>20):
+                return r*1.3
+            else:   
+                return r"""
+    try:
+        arcpy.CalculateField_management(inTable, fieldName, expression, "PYTHON_9.3", codeblock)
+    except:
+        print inTable
+        continue
+# COSTS over AVPLUSOLD (slopes mean)
+import os
+import arcpy
+import itertools
+import csv
+folderPath = r"\\CEDERH\Grupos\RECURSOS_BIOMASA\16_BIOMASUD_BIORAISE\MAPAS\DEFINITIVOS\Forestry_nov18_all\Available"
+arcpy.env.workspace=folderPath
+arcpy.env.overwriteOutput = True 
+matriz = [["conif_av_1.shp",53.90098503,0.00098503],["broad_av_1.shp",46.20079767,0.000797669],["mixed_av_1.shp",48.76772986,0.001063192],["dehesas_av_1shp.shp",48.65738905,0.004389049]] 
+for i in range (0,3):
+    inTable = matriz[i][0]
+    coef1 = matriz[i][1]
+    coef2 = matriz[i][2]
+    fieldName = "costold"
+    field_names = [f.name for f in arcpy.ListFields(inTable)]
+    slope_field = "Avg_slope"
+    newfield = "avha20old"
+    arcpy.AddField_management(inTable, newfield,"FLOAT","", "", "", newfield, "NULLABLE", "NON_REQUIRED", "")
+    expression = "(!avplusold!*20)/!ha!"
+    #biomass = "avplusold"
+    arcpy.AddField_management(inTable,"costold","FLOAT","", "", "", "costold", "NULLABLE", "NON_REQUIRED", "") 
+    arcpy.CalculateField_management(inTable, newfield, expression, "PYTHON_9.3")
+    expression = 'float(float(' + str(coef1) + ') - float(!avha20!* ' + str(coef2) + '))'
+    #expression = '1'
+    expression = "IgnoreZero(float(!avplusold!), float(!Avg_slope!), float(coef1), float(coef2))"
+    codeblock = """def IgnoreZero(val, valSlope, c1, c2):
+        if (val==0):
+            return 0
+        else:
+            r=c1 - val * c2
+            if (valSlope>20):
+                return r*1.3
+            else:   
+                return r"""
+    try:
+        arcpy.CalculateField_management(inTable, fieldName, expression, "PYTHON_9.3", codeblock)
+    except:
+        print inTable
+        continue
 
 ## costs array: 
 Shrub	47.3631926	0.0301926
@@ -619,6 +674,97 @@ Broadleaved	47.36531403, 0.03231403
 Conifers	47.36385994, 0.030859944
 Mixed	47.36321003, 0.03021003
 Dehesas	47.38296986, 0.049969856
+
+[conifers_av,53.90108561,0.001085613],[broad_av,46.20079768,0.000797677],[mixed_av,48.76772987,0.001063202],[dehesas_av,48.65738928,0.004389283]]
+-------------------------------------------------
+####### 4DECEMBER: CHANGE COEFFICIENTS 
+## VIP. potential computed using normalization by nut2
+# costs OVER AVPLUS
+import os
+import arcpy
+import itertools
+import csv
+folderPath = r"\\CEDERH\Grupos\RECURSOS_BIOMASA\16_BIOMASUD_BIORAISE\MAPAS\DEFINITIVOS\Forestry_nov18_all\Available"
+arcpy.env.workspace=folderPath
+arcpy.env.overwriteOutput = True 
+matriz = [["conif_av_1.shp",53.90108561,0.001085613],["broad_av_1.shp",46.20079768,0.000797677],["mixed_av_1.shp",48.76772987,0.001063202],["dehesas_av_1.shp",48.65738928,0.004389283]] 
+for i in range (0,3):
+    inTable = matriz[i][0]
+    coef1 = matriz[i][1]
+    coef2 = matriz[i][2]
+    fieldName = "cost"
+    field_names = [f.name for f in arcpy.ListFields(inTable)]
+    slope_field = "Avgsd_slope"
+    newfield = "avha20"
+    arcpy.AddField_management(inTable, newfield,"FLOAT","", "", "", newfield, "NULLABLE", "NON_REQUIRED", "")
+    expression = "(!avplus!*20)/!ha!"
+    #biomass = "avplus"
+    arcpy.AddField_management(inTable,"cost","FLOAT","", "", "", "cost", "NULLABLE", "NON_REQUIRED", "") 
+    arcpy.CalculateField_management(inTable, newfield, expression, "PYTHON_9.3")
+    expression = 'float(float(' + str(coef1) + ') - float(!avha20!* ' + str(coef2) + '))'
+    #expression = '1'
+    expression = "IgnoreZero(float(!avplus!), float(!Avgsd_slope!), float(coef1), float(coef2))"
+    codeblock = """def IgnoreZero(val, valSlope, c1, c2):
+        if (val==0):
+            return 0
+        else:
+            r=c1 - val * c2
+            if (valSlope>20):
+                return r*1.3
+            else:   
+                return r"""
+    try:
+        arcpy.CalculateField_management(inTable, fieldName, expression, "PYTHON_9.3", codeblock)
+    except:
+        print inTable
+        continue
+
+# costs OVER AVPLUSOLD
+import os
+import arcpy
+import itertools
+import csv
+folderPath = r"\\CEDERH\Grupos\RECURSOS_BIOMASA\16_BIOMASUD_BIORAISE\MAPAS\DEFINITIVOS\Forestry_nov18_all\Available"
+arcpy.env.workspace=folderPath
+arcpy.env.overwriteOutput = True 
+#fcLst = [fc for fc in arcpy.ListFeatureClasses() if fc.startswith('conif') or os.path.splitext(fc)[0].startswith('mix') or os.path.splitext(fc)[0].startswith('dehesas') or os.path.splitext(fc)[0].startswith('broad')]
+#print fcLst
+#for fc in fcLst:
+matriz = [["conif_av_1.shp",53.90098503,0.00098503],["broad_av_1.shp",46.20079767,0.000797669],["mixed_av_1.shp",48.76772986,0.001063192],["dehesas_av_1.shp",48.65738905,0.004389049]] 
+for i in range (0,3):
+    inTable = matriz[i][0]
+    coef1 = matriz[i][1]
+    coef2 = matriz[i][2]
+    fieldName = "cost"
+    field_names = [f.name for f in arcpy.ListFields(inTable)]
+    slope_field = "Avg_slope"
+    newfield = "avha20"
+    arcpy.AddField_management(inTable, newfield,"FLOAT","", "", "", newfield, "NULLABLE", "NON_REQUIRED", "")
+    expression = "(!avplusold!*20)/!ha!"
+    #biomass = "avplusold"
+    arcpy.AddField_management(inTable,"cost","FLOAT","", "", "", "cost", "NULLABLE", "NON_REQUIRED", "") 
+    arcpy.CalculateField_management(inTable, newfield, expression, "PYTHON_9.3")
+    expression = 'float(float(' + str(coef1) + ') - float(!avha20!* ' + str(coef2) + '))'
+    #expression = '1'
+    expression = "IgnoreZero(float(!avplusold!), float(!Avg_slope!), float(coef1), float(coef2))"
+    codeblock = """def IgnoreZero(val, valSlope, c1, c2):
+        if (val==0):
+            return 0
+        else:
+            r=c1 - val * c2
+            if (valSlope>20):
+                return r*1.3
+            else:   
+                return r"""
+    try:
+        arcpy.CalculateField_management(inTable, fieldName, expression, "PYTHON_9.3", codeblock)
+    except:
+        print inTable
+        continue
+
+
+
+
 
 ### MAKE A COPY. RENAME FIELDS AVPLUS for Shrubs: avplus, Dehesas:Mgyha, avMg, costfix, conifers/broad/mixed: Av_tyr
 ## dropfields/project to WebMercator/ send to TFS
