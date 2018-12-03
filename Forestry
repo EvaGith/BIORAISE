@@ -575,7 +575,10 @@ for fc in fcs:
         print fc
 	continue
 
-# 2. COSTS FORMULA
+# 2. COSTS FORMULA (see excels and write: it is a linear model: coef1 - (avha20*coef2)
+# the idea is that for more production, costs are lower than for fewer biomass stocks
+# in the <20 shapefiles, calculate range (max-min) VIP should this be done by nut2?
+# see excel to apply formula
 
 # Apply costs coefficients considering costs + 30% expensive if Avgsd_slop > 20
 import arcpy
@@ -589,10 +592,14 @@ for i in range (0,3):
     coef2 = matriz[i][2]
     fieldName = "cost"
     field_names = [f.name for f in arcpy.ListFields(inTable)]
-    slope_field = "Avg_slope"
+    slope_field = "Avgsd_slop"
+    newfield = "avha20"
+    arcpy.AddField_management(fc, newfield,"FLOAT","", "", "", newfield, "NULLABLE", "NON_REQUIRED", "")
+    expression = "(!avplus!*20)/!ha!"
     #biomass = "avplus"
     arcpy.AddField_management(inTable,"cost","FLOAT","", "", "", "cost", "NULLABLE", "NON_REQUIRED", "") 
-    #expression = 'float(float(' + str(coef1) + ') - float(!avplus!* ' + str(coef2) + '))'
+    arcpy.CalculateField_management(inTable, newfield, expression, "PYTHON_9.3")
+    #expression = 'float(float(' + str(coef1) + ') - float(!avha20!* ' + str(coef2) + '))'
     #expression = '1'
     expression = "IgnoreZero(float(!avplus!), float(!Avg_slope!), float(coef1), float(coef2))"
     codeblock = """def IgnoreZero(val, valSlope, c1, c2):
