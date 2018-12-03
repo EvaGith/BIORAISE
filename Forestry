@@ -202,7 +202,8 @@ for fc in fcLst:
     except:
         print fc
         continue
-# VIP: check tables to decide whether to apply or not this conditional. maybe not comparable NPP/AGB values
+# VIP: check tables to decide whether to apply or not this conditional. not comparable NPP/AGB values unitl NPPu. 
+# still, we decide not to apply the conditional
 # this is not needed: we only use AGB in forestry layers and NPP in shrubs (need to find out about the NPP units for this)
 import os
 import arcpy
@@ -240,8 +241,9 @@ for fc in fcLst:
         continue
 	
 # shrubs use NPP, rest of forestry use AGB # 
-# where NPP = null or 0, take fix productivity from Chrisgas ## add 30thNov this fix productivity in the code
-# where no 0 = normalize (compute the mean and divide by it every row)
+# where NPP = null or 0, take fix productivity from Chrisgas ## add 30thNov this fix productivity in the code NOT DONE
+# where no 0 = normalize (compute the mean and divide by it every row) 
+
 #### NORMALIZATION BY NUT2 (paloma is not normalizing by NUT2)
 # BY NUT2: Avg_agb/Avg_agbMEAN donde AGB !=0
 # columna A. donde Avg_agb != 0, A= mean.numpy Avg_agb by NUT2 
@@ -272,7 +274,7 @@ for fc in fcLst:
        else:
            return None"""
     try:
-        arcpy.CalculateField_management(fc, fieldName, expression, "PYTHON_9.3")
+        arcpy.CalculateField_management(fc, fieldName, expression, "PYTHON_9.3", codeblock)
     except:
         print fc
         continue
@@ -304,7 +306,7 @@ for fc in fcLst:
         print fc
         continue
 	
-# column C	
+# VIP. column Potential biomass (t/yr). POTENTIAL BIOMASS = normalized Avg_agb value by NUT2 * productivity by NUT2 	
 import os
 import arcpy
 import itertools
@@ -316,7 +318,7 @@ arcpy.env.overwriteOutput = True
 fcs = arcpy.ListFeatureClasses()
 fcLst = [fc for fc in arcpy.ListFeatureClasses() if not fc.startswith('Shrub')]
 for fc in fcLst:
-    fieldName = "C"
+    fieldName = "tyr"
     arcpy.AddField_management(fc, fieldName,"FLOAT","", "", "", fieldName, "NULLABLE", "NON_REQUIRED", "") 
     expression = "float(!MAPV!)*!B!" # change for Avg_npp in shrub feature class
     try:
@@ -327,7 +329,7 @@ for fc in fcLst:
 
 ## AVAILABLE restrictions orgc (soil organic carbon 30cm depth) + PESERA (soil erosion risk): not in Turkey nor Croatia
 # introduce if/else statements considering nut2 to not apply pesera in turkey/croatia
-# create field potential the same for all layers first
+# create field potential the same for all layers first (only applied to CEDER layers because contained TFS names)
 import os
 import arcpy
 import itertools
@@ -400,26 +402,26 @@ for fc in fcList:
     arcpy.AddField_management(fc,"avorgc","FLOAT","", "", "", "avorgc", "NULLABLE", "NON_REQUIRED", "") 
     expression = "potential(float(!tyr!), float(!Avgsd_slop!), float(!Avg_orgc!))" # potential biomass names
     codeblock = """def potential(valPotential_tyr, valSlope, orgc):
-       if (valSlope<20):
-           if orgc < 1: 
-               return 0
-           elif orgc < 2: 
-               rorg = valPotential_tyr * 0.4
-               return rorg
-           else: 
-               rorg = valPotential_tyr * 0.6
-               return rorg
-       elif (valSlope<60):
-           if orgc < 1: 
-               return 0
-           elif orgc < 2: 
-               rorg = valPotential_tyr * 0.3
-               return rorg
-           else: 
-               rorg = valPotential_tyr * 0.5
-               return rorg
-       else:
-           return 0"""
+        if (valSlope<20):
+            if orgc < 1: 
+                return 0
+            elif orgc < 2: 
+                rorg = valPotential_tyr * 0.4
+                return rorg
+            else: 
+                rorg = valPotential_tyr * 0.6
+                return rorg
+        elif (valSlope<60):
+            if orgc < 1: 
+                return 0
+            elif orgc < 2: 
+                rorg = valPotential_tyr * 0.3
+                return rorg
+            else: 
+                rorg = valPotential_tyr * 0.5
+                return rorg
+        else:
+            return 0"""
     try:
         arcpy.CalculateField_management(fc, fieldName, expression, "PYTHON_9.3", codeblock)
     except:
@@ -441,25 +443,25 @@ for fc in fcs:
     arcpy.AddField_management(fc,"avpes","FLOAT","", "", "", "avpes", "NULLABLE", "NON_REQUIRED", "") # this will be the final available resources NEEDS CALCULATEFIELD MANAGEMENT AFTER SOIL LOSS RESTRICTIONS AND CARBON RESTRICTIONS
     expression = "AVPES(float(!tyr!), float(!Avgsd_slop!), float(!Avg_pes!))" #30thNov change potential field!!
     codeblock = """def AVPES(valPotential_tyr, valSlope, valpesera):
-       if valpesera is not None:
-           if (valSlope<20):
-               if valpesera < 2: 
-                   ravpes = valPotential_tyr * 0.6
-                   return ravpes
-               elif valpesera < 10: 
-                   ravpes = valPotential_tyrv * 0.4
-                   return ravpes
-               else: 
-                   return 0
-           elif (valSlope<60):
-               if valpesera < 2: 
-                   rvavpes = valPotential_tyr * 0.5    
-                   return ravpes
-               elif valpesera < 10: 
-                   ravpes = valPotential_tyr * 0.3
-                   return ravpes
-               else: 
-                   return 0
+        if valpesera is not None:
+            if (valSlope<20):
+                if valpesera < 2: 
+                    ravpes = valPotential_tyr * 0.6
+                    return ravpes
+                elif valpesera < 10: 
+                    ravpes = valPotential_tyr * 0.4
+                    return ravpes
+                else: 
+                    return 0
+            elif (valSlope<60):
+                if valpesera < 2: 
+                    ravpes = valPotential_tyr * 0.5    
+                    return ravpes
+                elif valpesera < 10: 
+                    ravpes = valPotential_tyr * 0.3
+                    return ravpes
+                else: 
+                    return 0
            else:
                return 0
         else:	   
