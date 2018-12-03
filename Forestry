@@ -181,7 +181,7 @@ for fc in fcl:
 
 ### POTENTIAL BIOMASS (T/YR)
 ## with NPP and AGB Paloma generates potential biomass (in t/yr) in excel tables
-# ? conditional if AGB is 0, take NPP? check how this is done! IT IS NOT DONE ANYOMRE
+# conditional if AGB is 0, take NPP. check how this is done! IT IS NOT DONE ANYOMRE
 # VIP: first change values in Avg_npp column according to NPP units (1 km2 = 100 hectares)
 # i.e., divide by 100 because km2 is in the denominator: after checking values, it is the most reasonable operation to be comparable to AGB
 # VIP: introduce in the conditional what is done in excel (standardize = dividing by the mean)
@@ -252,7 +252,13 @@ for fc in fcLst:
 # añadir a la tabla un campo que es MAPV byNUT2 (excel). MAPV 
 # columna C. MAPV*B POTENTIAL T/YR
 
-# column A
+# column A. 3/12/2018. Need a better code for this bit. Error operand type. 
+# tried different codes: Summary statistics: arcpy.Statistics_analysis allows for casefile NUTS_ID but not allows for avoiding zeros
+# in calculations. the syntaxis does not consider additional where_clause. additionally it is too slow.
+# 2try: sum statistics + length statistics (without zeros) + mean (sum/length) by NUT2 for Avg_agb and Avg_npp(u)
+# 2try: summary statistics output are tables. need to joinfield afterwards
+# 3/12/2018 export the dbfs to xls/dynamic tables for NUT2/Avg_agb, NUT2/Avg_npp. In shrubs corinecode&NUT2/Avg_agb
+# 3/12/2018 import xls in access, export as dbf. join field by NUT2 or concatenated code codecorine_nut2 in shrubs
 import os
 import arcpy
 import itertools
@@ -291,12 +297,38 @@ arcpy.env.overwriteOutput = True
 fcs = arcpy.ListFeatureClasses()
 fcLst = [fc for fc in arcpy.ListFeatureClasses() if not fc.startswith('Shrub')]
 for fc in fcLst:
-    fieldName = "B"
+    fieldName = "normagb"
     arcpy.AddField_management(fc, fieldName,"FLOAT","", "", "", fieldName, "NULLABLE", "NON_REQUIRED", "") 
-    expression = "funcB(float(!Avg_agb!), !A!)" # change for Avg_npp in shrub feature class
+    expression = "funcNormagb(float(!Avg_agb!), !n_Avgagb!)" # change for Avg_npp in shrub feature class
     codeblock = """def funcB(valavgagb, colA):
        if (valavgagb != 0):
            r = valavgagb/A
+           return r 
+       else:
+           return 1"""
+    try:
+        arcpy.CalculateField_management(fc, fieldName, expression, "PYTHON_9.3")
+    except:
+        print fc
+        continue
+	
+import os
+import arcpy
+import itertools
+import csv
+import numpy
+outWorkspace = r"E:\TFS_nov_forestry\forestry.gdb"
+arcpy.env.workspace = outWorkspace  
+arcpy.env.overwriteOutput = True 
+fcs = arcpy.ListFeatureClasses()
+fcLst = [fc for fc in arcpy.ListFeatureClasses() if fc.startswith('Shrub')]
+for fc in fcLst:
+    fieldName = "normnpp"
+    arcpy.AddField_management(fc, fieldName,"FLOAT","", "", "", fieldName, "NULLABLE", "NON_REQUIRED", "") 
+    expression = "funcNormagb(float(!Avg_nppu!), !n_Avgnpp!)" # change for Avg_npp(u) name in shrub feature class
+    codeblock = """def funcB(valavgnpp, colA):
+       if (valavgnpp != 0):
+           r = valavgnpp/A
            return r 
        else:
            return 1"""
@@ -320,7 +352,27 @@ fcLst = [fc for fc in arcpy.ListFeatureClasses() if not fc.startswith('Shrub')]
 for fc in fcLst:
     fieldName = "tyr"
     arcpy.AddField_management(fc, fieldName,"FLOAT","", "", "", fieldName, "NULLABLE", "NON_REQUIRED", "") 
-    expression = "float(!MAPV!)*!B!" # change for Avg_npp in shrub feature class
+    expression = "float(!MAPV!)*!normagb!" # change for Avg_npp in shrub feature class
+    try:
+        arcpy.CalculateField_management(fc, fieldName, expression, "PYTHON_9.3")
+    except:
+        print fc
+        continue
+	
+import os
+import arcpy
+import itertools
+import csv
+import numpy
+outWorkspace = r"E:\TFS_nov_forestry\forestry.gdb"
+arcpy.env.workspace = outWorkspace  
+arcpy.env.overwriteOutput = True 
+fcs = arcpy.ListFeatureClasses()
+fcLst = [fc for fc in arcpy.ListFeatureClasses() if fc.startswith('Shrub')]
+for fc in fcLst:
+    fieldName = "tyr"
+    arcpy.AddField_management(fc, fieldName,"FLOAT","", "", "", fieldName, "NULLABLE", "NON_REQUIRED", "") 
+    expression = "float(!MAPV!)*!normnpp!" # change for Avg_npp in shrub feature class
     try:
         arcpy.CalculateField_management(fc, fieldName, expression, "PYTHON_9.3")
     except:
@@ -498,9 +550,34 @@ for fc in fcs:
     except:
         print fc
         continue
+	
 
-# now the AVAILABLE BIOMASS (T/YR) is avplus (rename after costs)
 ### COSTS
+# now the AVAILABLE BIOMASS (T/YR) is avplus (rename after costs)
+# Costs coefficientes fitting
+# 1. select by attributes Avgsd_slop < 20
+import arcpy
+arcpy.env.workspace=r"C:\Users\Eva\Desktop\forestryfix\TFS_nov_forestry\forestry.gdb"
+arcpy.env.overwriteOutput = True 
+fcs = arcpy.ListFeatureClasses()
+#print fcList
+for fc in fcs:
+    arcpy.CheckOutExtension("Spatial")  
+    #SelectLayerByAttribute_management (in_layer_or_view, {selection_type}, {where_clause}, {invert_where_clause})
+    # Make a layer from the feature class
+    try:
+        arcpy.MakeFeatureLayer_management(fc, "lyr") 
+        arcpy.SelectLayerByAttribute_management("lyr", "NEW_SELECTION", ' "Avgsd_slop" < 20 ')
+        # Write the selected features to a new featureclass
+        outname = fc +"_lt20avgsdslope.shp"
+        arcpy.CopyFeatures_management("lyr", outname)
+    except:
+        print fc
+	continue
+
+# 2. COSTS FORMULA
+
+# Apply costs coefficients considering costs + 30% expensive if Avgsd_slop > 20
 import arcpy
 arcpy.env.workspace=r"C:\Users\Eva\Desktop\forestryfix\TFS_nov_forestry\forestry.gdb"
 arcpy.env.overwriteOutput = True 
