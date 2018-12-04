@@ -1698,6 +1698,28 @@ for fc in featureClasses:
                return r"""
     arcpy.CalculateField_management(fc, fieldName, expression, "PYTHON_9.3", codeblock)
 
+## AVAILABLE FOR TFS (in t/yr) avplus is in t/(yr*ha): we have to multiply * ha
+# available for TFS t/yr
+import os
+import arcpy
+import itertools
+import csv
+arcpy.env.workspace=r"C:\Users\Eva\Desktop\forestryfix\nut2weigh\forestry.gdb"
+arcpy.env.overwriteOutput = True 
+fcs = arcpy.ListFeatureClasses()
+#print fcs
+for fc in fcs:
+    newfield = "avTFS"
+    expression = "(!avplus!*!ha!)"
+    try:
+        arcpy.AddField_management(fc, newfield,"FLOAT","", "", "", newfield, "NULLABLE", "NON_REQUIRED", "")
+        arcpy.CalculateField_management(fc, newfield, expression, "PYTHON_9.3")
+    except:
+        print fc
+        continue
+
+
+----
 ##
 import os
 import arcpy
