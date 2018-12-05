@@ -629,7 +629,7 @@ for fc in fcs:
         print fc
 	continue
 
-# range of av20 in polygons with less than 20 Avgsd_slop
+# range of av20 in polygons with less than 20 Avgsd_slop (not considering nulls nor zeros)
 import os
 import arcpy
 import itertools
@@ -644,42 +644,22 @@ for fc in fcs:
     arcpy.AddField_management(fc, newfield,"FLOAT","", "", "", newfield, "NULLABLE", "NON_REQUIRED", "")
     expression = "!avplus!*20"
     arcpy.CalculateField_management(fc, newfield, expression, "PYTHON_9.3")
-    newfield = "av20_rng"
-    arcpy.AddField_management(fc, newfield,"FLOAT","", "", "", newfield, "NULLABLE", "NON_REQUIRED", "")
-    field = "av20"
-    lst = [r[0] for r in arcpy.da.SearchCursor(fc, (field))]
-    avmin = min(lst)
-    avmax = max(lst)  
-    expression = "avmax - avmin"
-    try:
-        arcpy.CalculateField_management(fc, newfield, expression, "PYTHON_9.3")
-    except:
-        print fc
-        continue
-
-
-import os
-import arcpy
-import itertools
-import csv
-arcpy.env.workspace=r"C:\Users\Eva\Desktop\forestryfix\nut2weigh\costcoef"
-arcpy.env.overwriteOutput = True 
-#fcs = [fc for fc in arcpy.ListFeatureClasses() if fc.startswith('Shrub')] 
-fcs = arcpy.ListFeatureClasses("*lt20avgsdslope*", "All")
-#print fcs
-for fc in fcs:
-    newfield = "av20_rng"
-    newfield1 = "av20_min"
-    arcpy.AddField_management(fc, newfield,"FLOAT","", "", "", newfield, "NULLABLE", "NON_REQUIRED", "")
+    newfield1 = "av20_rng"
     arcpy.AddField_management(fc, newfield1,"FLOAT","", "", "", newfield1, "NULLABLE", "NON_REQUIRED", "")
     field = "av20"
-    lst = [r[0] for r in arcpy.da.SearchCursor(fc, (field))]
-    avmin = min(lst)
-    avmax = max(lst)  
-    expression = "avmax - avmin"
+    where_clause = field + " IS NOT NULL AND " + field + " <>0"
+    lst = [r[0] for r in arcpy.da.SearchCursor(fc, (field), where_clause)]
+    lst.sort()
+    rngmin = lst[0]
+    rngmax = lst[-1]  
+    #print rngmin
+    #print rngmax
+    expression1 = "rngmax - rngmin" 
+    newfield2 = "avmin"
+    avminexpression = rngmin
     try:
-        arcpy.CalculateField_management(fc, newfield, expression, "PYTHON_9.3")
-        arcpy.CalculateField_management(fc, newfield1, avmin, "PYTHON_9.3")
+        arcpy.CalculateField_management(fc, newfield1, expression1, "PYTHON_9.3")
+	arcpy.CalculateField_management(fc, newfield2, avminexpression, "PYTHON_9.3")
     except:
         print fc
         continue
@@ -880,8 +860,14 @@ for fc in fcs:
     print fc
     lst1 = [r[0] for r in arcpy.da.SearchCursor(fc, (coef1))]
     lst2 = [r[0] for r in arcpy.da.SearchCursor(fc, (coef2))]
-    coef1print = min(lst1)  # does not matter max or min it is constant in all rows
-    coef2print = min(lst2)
+    lst1.sort()
+    lst2.sort()
+    lst1min = lst1[0]
+    lst2min = lst2[0]  
+    #print rngmin
+    #print rngmax
+    coef1print = lst1min
+    coef2print = lst2min
     print coef1print
     print coef2print
 
