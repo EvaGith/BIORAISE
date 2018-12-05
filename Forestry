@@ -831,14 +831,8 @@ arcpy.env.overwriteOutput = True
 fcs = arcpy.ListFeatureClasses()
 #print fcs
 for fc in fcs:
-    newfield1 = "av20_min"
-    arcpy.AddField_management(fc, newfield1,"FLOAT","", "", "", newfield1, "NULLABLE", "NON_REQUIRED", "")
-    field = "av20"
-    lst = [r[0] for r in arcpy.da.SearchCursor(fc, (field))]
-    avmin = min(lst)
-    arcpy.CalculateField_management(fc, newfield1, avmin, "PYTHON_9.3")
     newfieldcoef2 = "coef2"
-    expression = "!cmax! - (!coef1!*!av20_min!)"   
+    expression = "!cmax! - (!coef1!*!avmin!)"   
     arcpy.AddField_management(fc, newfieldcoef2,"FLOAT","", "", "", newfieldcoef2, "NULLABLE", "NON_REQUIRED", "")
     try:
         arcpy.CalculateField_management(fc, newfieldcoef2, expression, "PYTHON_9.3")
@@ -873,20 +867,21 @@ for fc in fcs:
 
     # results from print for cost matrix
     broad_av_lt20avgsdslope.shp
-    0.184064000845
-    37.7999992371
-    conif_av_lt20avgsdslope.shp
-    0.337289005518
-    44.0999984741
-    dehesas_lt20avgsdslope.shp
-    0.968519985676
-    39.8069992065
-    mixed_av_lt20avgsdslope.shp
-    0.32176399231
-    39.5999984741
-    Shrubs_utm_lt20avgsdslope.shp
-    0.193507000804
-    38.7270011902
+    -0.189844995737
+    46.4637985229
+   conif_av_lt20avgsdslope.shp
+   -0.34993699193
+   54.2675018311
+   dehesas_lt20avgsdslope.shp
+   -1.04358005524
+   49.3386001587
+   mixed_av_lt20avgsdslope.shp
+   -0.339233994484
+   48.8777999878
+   Shrubs_utm_lt20avgsdslope.shp
+   -0.193507999182
+   47.3330993652
+
 
 # costs matrix in gdb feature classes (apply costs to all rows, not only < 20 Avgsd_slop)
 import os
