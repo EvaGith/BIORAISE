@@ -179,9 +179,10 @@ for fc in fcl:
         print fc
         continue
 
-### POTENTIAL BIOMASS (T/YR)
-## with NPP and AGB Paloma generates potential biomass (in t/yr) in excel tables
-# conditional if AGB is 0, take NPP. check how this is done! IT IS NOT DONE ANYOMRE
+### POTENTIAL BIOMASS (T/HA*YR)
+## with NPP and AGB the old version, potential biomass (in t/ha*yr) was computed in excel tables.
+# we now do all of this coding
+# conditional if AGB is 0, take NPP. check how this is done! It is not done anymore. We now only choose between AGB or NPP depending on completeness of coverage over CORINE.
 # VIP: first change values in Avg_npp column according to NPP units (1 km2 = 100 hectares)
 # i.e., divide by 100 because km2 is in the denominator: after checking values, it is the most reasonable operation to be comparable to AGB
 # VIP: introduce in the conditional what is done in excel (standardize = dividing by the mean)
@@ -241,7 +242,7 @@ for fc in fcLst:
         continue
 	
 # shrubs use NPP, rest of forestry use AGB # 
-# where NPP = null or 0, take fix productivity from Chrisgas ## add 30thNov this fix productivity in the code NOT DONE
+# where NPP = null or 0, take fix productivity from Chrisgas ## a fix productivity in the code could be added NOT DONE
 # where no 0 = normalize (compute the mean and divide by it every row) 
 
 #### NORMALIZATION BY NUT2 (paloma is not normalizing by NUT2)
@@ -250,7 +251,7 @@ for fc in fcLst:
 # columna B. donde Avg_agb != 0, B= Avg_agb/A
 # columna B. donde Avg_agb == 0, B= 1
 # añadir a la tabla un campo que es MAPV byNUT2 (excel). MAPV 
-# columna C. MAPV*B POTENTIAL T/YR
+# columna C. MAPV*B POTENTIAL T/HA YR
 
 # column A. 3/12/2018. Need a better code for this bit. Error operand type. 
 # tried different codes: Summary statistics: arcpy.Statistics_analysis allows for casefile NUTS_ID but not allows for avoiding zeros
@@ -343,8 +344,8 @@ for fc in fcLst:
         print fc
         continue
 
-# POTENTIAL BIOMASS (tDM/yr)
-# VIP. column Potential biomass (t/yr). POTENTIAL BIOMASS = normalized Avg_agb value by NUT2 * productivity by NUT2 	
+# POTENTIAL BIOMASS (tDM/ha*yr)
+# VIP. column Potential biomass (t/ha*yr). POTENTIAL BIOMASS = normalized Avg_agb value by NUT2 * productivity by NUT2 	
 import os
 import arcpy
 import itertools
@@ -559,7 +560,7 @@ for fc in fcs:
 	
 
 ### COSTS
-# now the AVAILABLE BIOMASS (T/YR) is avplus (rename after costs)
+# now the AVAILABLE BIOMASS (T/HA*YR) is avplus (rename after costs)
 # Costs coefficientes fitting
 # 1. select by attributes Avgsd_slop < 20
 import arcpy
@@ -581,12 +582,15 @@ for fc in fcs:
         print fc
 	continue
 
-# 2. COSTS FORMULA (see excels and write: it is a linear model: coef1 - (avha20*coef2)
+# 2. COSTS FORMULA (see excels and write: it is a linear model: coef1 - (av20*coef2)
 # the idea is that for more production, costs are lower than for fewer biomass stocks
-# in the <20 shapefiles, calculate range (max-min) of avha20. Note:VIP in the future. should this be done by nut2?
+# in the <20 shapefiles, calculate range (max-min) of av20. Note:VIP in the future. should this be done by nut2
+# beware of units: does not matter whether the model is fitted to available in 20 years in tDM/ha or tDM. 
+# only that if it is fitted with available in tDM/ha in 20 years, it is to be applied to the available in tDM/ha in 20years.
+# the costs will be rendered in €/tDM. 
 # 3. cmax 
 # 4. cmin
-## av20 = avplus*20 (available tDM in 20 years)
+## av20 = avplus*20 (available tDM/ha in 20 years)
 import os
 import arcpy
 import itertools
@@ -978,10 +982,19 @@ for i in range (0,1):
         print inTable
         continue
 
-# Apply costs coefficients considering costs + 30% expensive if Avgsd_slop > 20
-## COSTS
+    # what is applied in the code is considering costs + 30% expensive if Avgsd_slop > 20
+
+### UNITS TRANSFORMATION
+# our potential biomass and available biomass are now in t/ha*yr
+# to obtain potential and available biomass in t/yr we have to multiply by the surface of the polygon (!ha!)
+# expressions in Calculate Field management: tymapv*ha and avplus*ha respectively
+
+
+--------------------------------------------------------------------------------------------------------COMPARE TO OTHER CONSIDERATIONS
+# considering only slope mean restrictions, and not averaging by nut2 in normalization
+## COSTS in layers to compare with the ones above (but not needed). 
 ## not potential computed using normalization by nut2
-# costs OVER AVPLUS (slopesmean+sd)
+# costs OVER AVPLUS (slopesmean+sd): fitted for av20, so applied to av20. 
 import os
 import arcpy
 import itertools
@@ -997,13 +1010,13 @@ for i in range (0,3):
     fieldName = "cost"
     field_names = [f.name for f in arcpy.ListFields(inTable)]
     slope_field = "Avgsd_slop"
-    newfield = "avha20"
+    newfield = "av20"
     arcpy.AddField_management(inTable, newfield,"FLOAT","", "", "", newfield, "NULLABLE", "NON_REQUIRED", "")
-    expression = "(!avplus!*20)/!ha!"
+    expression = "!avplus!*20"
     #biomass = "avplus"
     arcpy.AddField_management(inTable,"cost","FLOAT","", "", "", "cost", "NULLABLE", "NON_REQUIRED", "") 
     arcpy.CalculateField_management(inTable, newfield, expression, "PYTHON_9.3")
-    expression = 'float(float(' + str(coef1) + ') - float(!avha20!* ' + str(coef2) + '))'
+    expression = 'float(float(' + str(coef1) + ') - float(!av20!* ' + str(coef2) + '))'
     #expression = '1'
     expression = "IgnoreZero(float(!avplus!), float(!Avgsd_slop!), float(coef1), float(coef2))"
     codeblock = """def IgnoreZero(val, valSlope, c1, c2):
@@ -1036,9 +1049,9 @@ for i in range (0,3):
     fieldName = "costold"
     field_names = [f.name for f in arcpy.ListFields(inTable)]
     slope_field = "Avg_slope"
-    newfield = "avha20old"
+    newfield = "av20old"
     arcpy.AddField_management(inTable, newfield,"FLOAT","", "", "", newfield, "NULLABLE", "NON_REQUIRED", "")
-    expression = "(!avplusold!*20)/!ha!"
+    expression = "!avplusold!*20"
     #biomass = "avplusold"
     arcpy.AddField_management(inTable,"costold","FLOAT","", "", "", "costold", "NULLABLE", "NON_REQUIRED", "") 
     arcpy.CalculateField_management(inTable, newfield, expression, "PYTHON_9.3")
@@ -1069,94 +1082,6 @@ Dehesas	47.38296986, 0.049969856
 
 [conifers_av,53.90108561,0.001085613],[broad_av,46.20079768,0.000797677],[mixed_av,48.76772987,0.001063202],[dehesas_av,48.65738928,0.004389283]]
 -------------------------------------------------
-####### 4DECEMBER: CHANGE COEFFICIENTS 
-## VIP. potential computed using normalization by nut2
-# costs OVER AVPLUS
-import os
-import arcpy
-import itertools
-import csv
-folderPath = r"\\CEDERH\Grupos\RECURSOS_BIOMASA\16_BIOMASUD_BIORAISE\MAPAS\DEFINITIVOS\Forestry_nov18_all\Available"
-arcpy.env.workspace=folderPath
-arcpy.env.overwriteOutput = True 
-matriz = [["conif_av_1.shp",53.90108561,0.001085613],["broad_av_1.shp",46.20079768,0.000797677],["mixed_av_1.shp",48.76772987,0.001063202],["dehesas_av_1.shp",48.65738928,0.004389283]] 
-for i in range (0,3):
-    inTable = matriz[i][0]
-    coef1 = matriz[i][1]
-    coef2 = matriz[i][2]
-    fieldName = "cost"
-    field_names = [f.name for f in arcpy.ListFields(inTable)]
-    slope_field = "Avgsd_slope"
-    newfield = "avha20"
-    arcpy.AddField_management(inTable, newfield,"FLOAT","", "", "", newfield, "NULLABLE", "NON_REQUIRED", "")
-    expression = "(!avplus!*20)/!ha!"
-    #biomass = "avplus"
-    arcpy.AddField_management(inTable,"cost","FLOAT","", "", "", "cost", "NULLABLE", "NON_REQUIRED", "") 
-    arcpy.CalculateField_management(inTable, newfield, expression, "PYTHON_9.3")
-    expression = 'float(float(' + str(coef1) + ') - float(!avha20!* ' + str(coef2) + '))'
-    #expression = '1'
-    expression = "IgnoreZero(float(!avplus!), float(!Avgsd_slope!), float(coef1), float(coef2))"
-    codeblock = """def IgnoreZero(val, valSlope, c1, c2):
-        if (val==0):
-            return 0
-        else:
-            r=c1 - val * c2
-            if (valSlope>20):
-                return r*1.3
-            else:   
-                return r"""
-    try:
-        arcpy.CalculateField_management(inTable, fieldName, expression, "PYTHON_9.3", codeblock)
-    except:
-        print inTable
-        continue
-
-# costs OVER AVPLUSOLD
-import os
-import arcpy
-import itertools
-import csv
-folderPath = r"\\CEDERH\Grupos\RECURSOS_BIOMASA\16_BIOMASUD_BIORAISE\MAPAS\DEFINITIVOS\Forestry_nov18_all\Available"
-arcpy.env.workspace=folderPath
-arcpy.env.overwriteOutput = True 
-#fcLst = [fc for fc in arcpy.ListFeatureClasses() if fc.startswith('conif') or os.path.splitext(fc)[0].startswith('mix') or os.path.splitext(fc)[0].startswith('dehesas') or os.path.splitext(fc)[0].startswith('broad')]
-#print fcLst
-#for fc in fcLst:
-matriz = [["conif_av_1.shp",53.90098503,0.00098503],["broad_av_1.shp",46.20079767,0.000797669],["mixed_av_1.shp",48.76772986,0.001063192],["dehesas_av_1.shp",48.65738905,0.004389049]] 
-for i in range (0,3):
-    inTable = matriz[i][0]
-    coef1 = matriz[i][1]
-    coef2 = matriz[i][2]
-    fieldName = "cost"
-    field_names = [f.name for f in arcpy.ListFields(inTable)]
-    slope_field = "Avg_slope"
-    newfield = "avha20"
-    arcpy.AddField_management(inTable, newfield,"FLOAT","", "", "", newfield, "NULLABLE", "NON_REQUIRED", "")
-    expression = "(!avplusold!*20)/!ha!"
-    #biomass = "avplusold"
-    arcpy.AddField_management(inTable,"cost","FLOAT","", "", "", "cost", "NULLABLE", "NON_REQUIRED", "") 
-    arcpy.CalculateField_management(inTable, newfield, expression, "PYTHON_9.3")
-    expression = 'float(float(' + str(coef1) + ') - float(!avha20!* ' + str(coef2) + '))'
-    #expression = '1'
-    expression = "IgnoreZero(float(!avplusold!), float(!Avg_slope!), float(coef1), float(coef2))"
-    codeblock = """def IgnoreZero(val, valSlope, c1, c2):
-        if (val==0):
-            return 0
-        else:
-            r=c1 - val * c2
-            if (valSlope>20):
-                return r*1.3
-            else:   
-                return r"""
-    try:
-        arcpy.CalculateField_management(inTable, fieldName, expression, "PYTHON_9.3", codeblock)
-    except:
-        print inTable
-        continue
-
-
-
-
 
 ### MAKE A COPY. RENAME FIELDS AVPLUS for Shrubs: avplus, Dehesas:Mgyha, avMg, costfix, conifers/broad/mixed: Av_tyr
 ## dropfields/project to WebMercator/ send to TFS
@@ -1228,6 +1153,7 @@ for fc in fclst:
         continue
 	
 ## project to google web mercator
+## NOW WE SHOULD COMPUTE THE STATISTICS. NOT DONE (and faster in Excel: dynamic tables).
 
 ## STATISTICS BY NUT2: for the original ones (with the same names for potential biomass (tyr) and available biomass (avplus)
 # quicker in excel with dynamic tables
