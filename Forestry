@@ -890,8 +890,7 @@ import itertools
 import csv
 arcpy.env.workspace=r"C:\Users\Eva\Desktop\forestryfix\nut2weigh\forestry.gdb"
 arcpy.env.overwriteOutput = True 
-#matriz = [["conif_av.shp",53.90108561,0.001085613],["broad_av.shp",46.20079768,0.000797677],["mixed_av.shp",48.76772987,0.001063202],["dehesas.shp",48.65738928,0.004389283], ["Shrubs_utm.shp", X, X]] 
-matriz = [["broad_av", 0.184064000845, 37.7999992371], ["conif_av", 0.337289005518, 44.0999984741], ["dehesas", 0.968519985676, 39.8069992065],["mixed_av", 0.32176399231, 39.5999984741],["Shrubs_utm", 0.193507000804, 38.7270011902]]
+matriz = [["broad_av", -0.189844995737, 46.4637985229], ["conif_av", -0.34993699193,  54.2675018311], ["dehesas", -1.04358005524, 49.3386001587],["mixed_av", -0.339233994484, 48.8777999878],["Shrubs_utm", -0.193507999182, 47.3330993652]]
 for i in range (0,4):
     inTable = matriz[i][0]
     coef1 = matriz[i][1]
