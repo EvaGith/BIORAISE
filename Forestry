@@ -1,3 +1,15 @@
+# REVIEW FORESTRY STRANGE VALUES IN AVAILABLE BIOMASS
+-En un xls he copiado los contenidos de las tablas de atributos para ver los máximos/mínimos y medias en cada campo.
+Lo que se podría hacer es definir a partir de qué valor se van a cifras inaceptables y hacer una selección de esas zonas para revisar las pendientes (_slop), carbono orgánico (Avgorgc) y erosión del suelo (Avgpes) (los marco en verde en el xls). Son las medias que se obtienen de los rásters en cada tesela. En el caso de la pendiente, usamos media+desviación. 
+forestry_check.xlsx 
+Estos son los parámetros que influyen en el disponible (campos que empiezan por av: morado; por ejemplo, avorgc es el resultado del disponible de aplicar al potencial el carbono orgánico según la matriz, avpes el resultado de aplicar la erosión del suelo y avthayr el disponible de elegir el más restrictivo de los dos; naranja: av20 es el ciclo de 20 años considerado: t/ha en 20 años).
+Si el tema viene del potencial, habría que ver los campos que implican productividades (campos en amarillo relacionados con AGB o NPP según la capa). 
+Revisando, me parece que lo que ha ocurrido es que el campo de disponible correcto es el que marco en gris en el excel en la hoja test
+avthayr (erróneamente llamado avthayr cuando está en unidades de t/yr ya). 
+apliqué sin querer el cálculo multiplicando por hectáreas de nuevo cuando ya no había que hacerlo porque las restricciones ambientales se aplican al potencial ya en t/yr. Si esto último es así, creo que las capas están bien y solo hay que seleccionar el disponible correcto (avthayr que en realidad es disponible en t/yr). Perdón!!
+No afectaría a los costes porque el av20 está calculado sobre el disponible en t/ha*yr. 
+Si sigues detectando valores muy anómalos, habría que ver lo siguiente:
+El hacer la selección en arcmap a partir de valores umbrales de aceptables/no aceptables, permitiría ver la distribución espacial de las teselas y si caen en zonas de nodata de rasters o límites entre data/nodata que puedan generar conflictos, aunque se supone que hicimos las estadísticas sin tener en cuenta los nodata, es decir que no debería haber valores extraños si caía un polígono en píxels de nodata. Pero ya sabes que a veces pasan cosas raras...
 # FEATURE CLASS CONVERSION FROM ZM POLYGONS TO POLYGONS
 # FeatureClassConversion. Conversion tools/To shapefile/feature class to shapefile
 # environments: disable M coordinate, disable Z coordinate
